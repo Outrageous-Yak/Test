@@ -2,221 +2,213 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Fantasy Chat (GitHub Pages + Worker)</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>AI Chatbot</title>
+
   <style>
-    :root { --bg:#0f0f12; --panel:#171722; --ink:#f2f2f2; --muted:#a8a8b3; --accent:#8b1a1a; }
-    * { box-sizing: border-box; }
+    :root { color-scheme: light dark; }
     body {
-      margin: 0; background: var(--bg); color: var(--ink);
-      font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
-      min-height: 100vh; display: grid; place-items: center; padding: 18px;
+      margin: 0;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+      background: #0b0c10;
+      color: #eaeaea;
     }
-    .app {
-      width: min(980px, 100%);
-      background: linear-gradient(180deg, rgba(255,255,255,0.04), transparent 40%), var(--panel);
-      border: 1px solid rgba(255,255,255,0.08);
-      border-radius: 16px;
-      box-shadow: 0 22px 60px rgba(0,0,0,0.45);
-      overflow: hidden;
+    .wrap {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
     }
-    header {
-      padding: 14px 16px;
-      display: flex; gap: 12px; align-items: center; justify-content: space-between;
-      border-bottom: 1px solid rgba(255,255,255,0.08);
+    .header {
+      font-weight: 600;
+      opacity: 0.85;
     }
-    header h1 { margin: 0; font-size: 14px; letter-spacing: .3px; font-weight: 650; }
-    header .status { font-size: 12px; color: var(--muted); display:flex; gap:10px; align-items:center; }
-    .pill { padding: 4px 10px; border-radius: 999px; border:1px solid rgba(255,255,255,0.10); }
-    .grid { display: grid; grid-template-columns: 320px 1fr; min-height: 70vh; }
-    @media (max-width: 860px){ .grid{ grid-template-columns: 1fr; } }
-    .sidebar { padding: 14px 14px 16px; border-right: 1px solid rgba(255,255,255,0.08); }
-    @media (max-width: 860px){ .sidebar{ border-right:none; border-bottom: 1px solid rgba(255,255,255,0.08); } }
-    label { display:block; font-size:12px; color: var(--muted); margin: 10px 0 6px; }
-    textarea, button, input {
-      width: 100%;
-      background: rgba(255,255,255,0.06);
-      color: var(--ink);
-      border: 1px solid rgba(255,255,255,0.10);
-      border-radius: 12px;
+    .card {
+      border: 1px solid rgba(255,255,255,.15);
+      border-radius: 14px;
+      padding: 12px;
+      background: rgba(255,255,255,.03);
+    }
+    #chat {
+      height: 70vh;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      padding: 10px;
+    }
+    .msg {
+      max-width: 85%;
+      padding: 10px 14px;
+      border-radius: 14px;
+      white-space: pre-wrap;
+      word-break: break-word;
+      line-height: 1.4;
+    }
+    .user {
+      align-self: flex-end;
+      background: #2563eb;
+      color: white;
+    }
+    .assistant {
+      align-self: flex-start;
+      background: #1f2937;
+    }
+    form {
+      display: flex;
+      gap: 10px;
+    }
+    textarea {
+      flex: 1;
+      resize: none;
+      min-height: 48px;
+      max-height: 180px;
       padding: 10px 12px;
-      outline: none;
+      border-radius: 10px;
+      border: 1px solid rgba(255,255,255,.2);
+      background: #0f172a;
+      color: inherit;
+      font: inherit;
     }
-    textarea { min-height: 140px; resize: vertical; }
     button {
+      padding: 0 18px;
+      border-radius: 10px;
+      border: 1px solid rgba(255,255,255,.25);
+      background: #1d4ed8;
+      color: white;
       cursor: pointer;
-      background: linear-gradient(180deg, rgba(139,26,26,0.95), rgba(139,26,26,0.70));
-      border: 1px solid rgba(255,255,255,0.12);
-      font-weight: 650;
+      font-weight: 500;
     }
-    button.secondary { background: rgba(255,255,255,0.06); font-weight: 600; }
-    button:disabled { opacity: .55; cursor: not-allowed; }
-    .chat { display:flex; flex-direction:column; padding: 14px; gap: 12px; }
-    .messages { flex: 1; overflow:auto; padding-right: 6px; max-height: 62vh; }
-    .msg { margin: 10px 0; display:flex; gap: 10px; }
-    .role {
-      font-size: 11px; color: var(--muted);
-      min-width: 62px; text-transform: uppercase; letter-spacing: .6px; padding-top: 6px;
+    button:disabled {
+      opacity: .6;
+      cursor: not-allowed;
     }
-    .bubble {
-      padding: 10px 12px; border-radius: 14px;
-      border: 1px solid rgba(255,255,255,0.10);
-      background: rgba(255,255,255,0.05);
-      line-height: 1.35; white-space: pre-wrap;
+    .error {
+      color: #fca5a5;
+      font-size: 13px;
+      display: none;
     }
-    .msg.user .bubble { background: rgba(139,26,26,0.18); border-color: rgba(139,26,26,0.40); }
-    .composer { display:flex; gap:10px; border-top: 1px solid rgba(255,255,255,0.08); padding-top: 12px; }
-    .composer input { flex: 1; }
-    .hint { font-size: 12px; color: var(--muted); margin-top: 10px; line-height: 1.35; }
-    .tiny { font-size: 11px; color: var(--muted); margin-top: 8px; word-break: break-all; }
+    .footer {
+      font-size: 12px;
+      opacity: .6;
+      text-align: center;
+    }
   </style>
 </head>
 
 <body>
-  <div class="app">
-    <header>
-      <h1>Fantasy Chat (GitHub Pages + Cloudflare Worker)</h1>
-      <div class="status">
-        <span class="pill" id="backendPill">Backend: not connected</span>
-        <span class="pill" id="modelPill">Model: gpt-4o-mini</span>
-      </div>
-    </header>
+  <div class="wrap">
+    <div class="header">AI Chatbot</div>
 
-    <div class="grid">
-      <div class="sidebar">
-        <label>Character / system prompt</label>
-        <textarea id="systemPrompt">You are Eldrin, a witty dungeon guide in a high-fantasy world.
-Stay in character. Speak in an old-world tone, but keep replies under 120 words.
-Always offer 2 choices at the end as: "Choice A: ..." and "Choice B: ...".
-Never mention you are an AI or a model. If asked, say you are a guide bound to the dungeon.</textarea>
+    <div id="chat" class="card"></div>
 
-        <div style="display:flex; gap:10px; margin-top: 12px;">
-          <button id="connectBtn" type="button">Connect</button>
-          <button class="secondary" id="resetBtn" type="button" disabled>Reset</button>
-        </div>
+    <div class="card">
+      <form id="composer">
+        <textarea id="input" placeholder="Type a message… (Enter = send, Shift+Enter = new line)"></textarea>
+        <button id="send" type="submit">Send</button>
+      </form>
+      <div id="error" class="error"></div>
+    </div>
 
-        <div class="hint">
-          This page calls your Worker (which calls OpenAI).
-          <div class="tiny" id="workerLine"></div>
-          <div class="tiny" id="debugLine"></div>
-        </div>
-      </div>
-
-      <div class="chat">
-        <div class="messages" id="messages"></div>
-
-        <div class="composer">
-          <input id="input" placeholder="Ask Eldrin something…" disabled />
-          <button id="sendBtn" type="button" disabled>Send</button>
-        </div>
-      </div>
+    <div class="footer">
+      Powered by Cloudflare Workers + OpenAI
     </div>
   </div>
 
   <script>
-  // ✅ Your Worker URL
-  const WORKER_URL = "https://calm-violet-14a8.f5tyzzqpdw.workers.dev";
+    const WORKER_URL = "https://calm-violet-14a8.f5tyzzqpdw.workers.dev/";
+    const SYSTEM_PROMPT = "You are a helpful assistant.";
 
-  document.addEventListener("DOMContentLoaded", () => {
-    const messagesEl = document.getElementById("messages");
-    const connectBtn = document.getElementById("connectBtn");
-    const resetBtn = document.getElementById("resetBtn");
-    const sendBtn = document.getElementById("sendBtn");
-    const inputEl = document.getElementById("input");
-    const systemPromptEl = document.getElementById("systemPrompt");
-    const backendPill = document.getElementById("backendPill");
-    const workerLine = document.getElementById("workerLine");
-    const debugLine = document.getElementById("debugLine");
+    const chat = document.getElementById("chat");
+    const form = document.getElementById("composer");
+    const input = document.getElementById("input");
+    const sendBtn = document.getElementById("send");
+    const errorEl = document.getElementById("error");
 
-    workerLine.textContent = "Worker: " + WORKER_URL;
+    const messages = [
+      { role: "assistant", content: "Hello! How can I help you today?" }
+    ];
 
-    function add(role, text) {
-      const row = document.createElement("div");
-      row.className = "msg " + role;
-      row.innerHTML = `<div class="role">${role}</div><div class="bubble"></div>`;
-      row.querySelector(".bubble").textContent = text;
-      messagesEl.appendChild(row);
-      messagesEl.scrollTop = messagesEl.scrollHeight;
+    function render() {
+      chat.innerHTML = "";
+      for (const m of messages) {
+        const div = document.createElement("div");
+        div.className = "msg " + m.role;
+        div.textContent = m.content;
+        chat.appendChild(div);
+      }
+      chat.scrollTop = chat.scrollHeight;
     }
 
-    function setEnabled(on) {
-      inputEl.disabled = !on;
-      sendBtn.disabled = !on;
-      resetBtn.disabled = !on;
+    function showError(msg) {
+      if (!msg) {
+        errorEl.style.display = "none";
+        errorEl.textContent = "";
+        return;
+      }
+      errorEl.style.display = "block";
+      errorEl.textContent = msg;
     }
 
-    function init() {
-      messagesEl.innerHTML = "";
-      add("assistant",
-        "Hail, traveler. I am Eldrin, keeper of wayward maps.\n\nChoice A: Ask about a quest.\nChoice B: Ask about the dungeon."
-      );
-    }
+    async function sendMessage(text) {
+      showError("");
 
-    async function callWorker(system, message) {
-      debugLine.textContent = "DEBUG: POSTing to Worker…";
+      messages.push({ role: "user", content: text });
+      render();
 
-      const r = await fetch(WORKER_URL, {
+      const res = await fetch(WORKER_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ system, message }),
+        body: JSON.stringify({
+          message: text,
+          system: SYSTEM_PROMPT
+        })
       });
 
-      const data = await r.json().catch(() => ({}));
-      debugLine.textContent = "DEBUG: Worker responded (HTTP " + r.status + ")";
+      const data = await res.json();
 
-      if (!r.ok) throw new Error(JSON.stringify(data?.error || data || ("HTTP " + r.status)));
-      return data.text || "";
+      if (!res.ok) {
+        throw new Error(data?.error?.message || "Request failed");
+      }
+
+      messages.push({
+        role: "assistant",
+        content: String(data.text || "")
+      });
+
+      render();
     }
 
-    connectBtn.onclick = async () => {
-      backendPill.textContent = "Backend: connecting…";
-      setEnabled(true);
-      init();
-      inputEl.focus();
-
-      try {
-        const ok = await callWorker("Reply with only: OK", "ping");
-        backendPill.textContent = (ok.trim() === "OK") ? "Backend: connected" : "Backend: connected (unexpected ping)";
-      } catch (e) {
-        backendPill.textContent = "Backend: error";
-        add("assistant", "Connect failed:\n" + (e?.message || e));
+    input.addEventListener("keydown", e => {
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        form.requestSubmit();
       }
-    };
-
-    resetBtn.onclick = () => { init(); inputEl.focus(); };
-
-    sendBtn.onclick = async () => {
-      const text = inputEl.value.trim();
-      if (!text) return;
-
-      add("user", text);
-      inputEl.value = "";
-      add("assistant", "…");
-
-      // lock while sending
-      sendBtn.disabled = true;
-      inputEl.disabled = true;
-
-      try {
-        const reply = await callWorker(systemPromptEl.value.trim(), text);
-        add("assistant", reply || "(No text returned)");
-      } catch (e) {
-        add("assistant", "Error:\n" + (e?.message || e));
-      } finally {
-        sendBtn.disabled = false;
-        inputEl.disabled = false;
-        inputEl.focus();
-      }
-    };
-
-    inputEl.addEventListener("keydown", (e) => {
-      if (e.key === "Enter") sendBtn.click();
     });
 
-    // initial
-    setEnabled(false);
-    init();
-  });
+    form.addEventListener("submit", async e => {
+      e.preventDefault();
+      const text = input.value.trim();
+      if (!text) return;
+
+      sendBtn.disabled = true;
+      input.disabled = true;
+      input.value = "";
+
+      try {
+        await sendMessage(text);
+      } catch (err) {
+        showError(err.message);
+      } finally {
+        sendBtn.disabled = false;
+        input.disabled = false;
+        input.focus();
+      }
+    });
+
+    render();
   </script>
 </body>
 </html>
