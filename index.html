@@ -213,6 +213,115 @@
       gap: 12px;
       height: 100%;
     }
+/* 4-column layout */
+.grid4{
+  display: grid;
+  grid-template-columns: 1.25fr 0.9fr 0.9fr 0.95fr; /* chat, panel, panel, image */
+  gap: 12px;
+  height: 100%;
+}
+
+/* Side panels styled like your chat panel */
+.sidePanel{
+  height: 100%;
+  border-radius: var(--radius);
+  border: 1px solid var(--stroke);
+  background: rgba(10,16,34,.45);
+  overflow: hidden;
+  box-shadow:
+    0 0 0 1px rgba(95,225,255,.10) inset,
+    0 18px 40px rgba(0,0,0,.35);
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.panelBody{
+  padding: 14px 14px 16px;
+  overflow: auto;
+}
+
+.panelTitle{
+  font-weight: 750;
+  letter-spacing: .2px;
+  margin-bottom: 8px;
+}
+
+.panelText{
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.panelDivider{
+  height: 1px;
+  background: rgba(191,232,255,.12);
+  margin: 12px 0;
+}
+
+.panelMini{
+  display: grid;
+  grid-template-columns: 80px 1fr;
+  gap: 10px;
+  padding: 8px 0;
+}
+.panelLabel{
+  color: rgba(191,232,255,.70);
+  font-size: 12px;
+}
+.panelValue{
+  color: var(--ink);
+  font-size: 13px;
+}
+
+.statGrid{
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.stat{
+  padding: 10px 10px;
+  border-radius: 14px;
+  border: 1px solid rgba(191,232,255,.12);
+  background: rgba(5,8,18,.40);
+  box-shadow: 0 10px 26px rgba(0,0,0,.25);
+}
+.statLabel{
+  font-size: 12px;
+  color: rgba(191,232,255,.70);
+}
+.statValue{
+  margin-top: 4px;
+  font-weight: 700;
+}
+
+.panelQuote{
+  color: rgba(234,242,255,.88);
+  font-size: 13px;
+  line-height: 1.5;
+  opacity: .9;
+}
+
+/* Responsive: collapse to 2 columns then 1 */
+@media (max-width: 1100px){
+  .grid4{
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: auto auto;
+  }
+  .portrait{
+    grid-column: span 2;
+    height: 300px;
+  }
+}
+@media (max-width: 700px){
+  .grid4{
+    grid-template-columns: 1fr;
+  }
+  .portrait{
+    grid-column: auto;
+    height: 260px;
+  }
+}
 
     /* Left: portrait panel */
     .portrait{
@@ -579,6 +688,8 @@
   </style>
 </head>
 
+</head>
+
 <body>
   <div class="wrap">
     <div class="topbar">
@@ -589,12 +700,89 @@
           <div class="subtitle">Walker • Threshold-Holder • Reluctant Axis</div>
         </div>
       </div>
-      <div class="hint">Enter = send • Shift+Enter = new line • Try: <span class="gmMono">/help</span></div>
+      <div class="hint">Enter = send • Shift+Enter = new line</div>
     </div>
 
     <div class="stage" role="application" aria-label="Aerin chat stage">
-      <div class="grid">
-        <!-- Left: Image panel -->
+      <div class="grid grid4">
+        <!-- Column 1: Chat panel -->
+        <section class="chatPanel" aria-label="Chat panel">
+          <div class="chatHead">
+            <div class="tag"><span class="dot"></span> Threshold Chat</div>
+            <div class="right">
+              <div class="pill" id="statusPill">Ready</div>
+            </div>
+          </div>
+
+          <div id="chat" aria-live="polite"></div>
+
+          <div id="error" class="error"></div>
+
+          <form id="composer" class="composer">
+            <textarea id="input" placeholder="Speak." autocomplete="off"></textarea>
+            <button id="send" type="submit">Send</button>
+          </form>
+        </section>
+
+        <!-- Column 2: Other stuff (Panel A) -->
+        <aside class="sidePanel" aria-label="Context panel">
+          <div class="chatHead">
+            <div class="tag"><span class="dot"></span> Context</div>
+          </div>
+          <div class="panelBody">
+            <div class="panelTitle">What’s already happening</div>
+            <div class="panelText">
+              Use this space for lore, constraints, goals, or scene notes.
+              Keep it short. Aerin listens better that way.
+            </div>
+
+            <div class="panelDivider"></div>
+
+            <div class="panelMini">
+              <div class="panelLabel">Rule</div>
+              <div class="panelValue">No forcing. No panic.</div>
+            </div>
+            <div class="panelMini">
+              <div class="panelLabel">Mode</div>
+              <div class="panelValue">Situational alignment</div>
+            </div>
+          </div>
+        </aside>
+
+        <!-- Column 3: Other stuff (Panel B) -->
+        <aside class="sidePanel" aria-label="Status panel">
+          <div class="chatHead">
+            <div class="tag"><span class="dot"></span> Alignment</div>
+          </div>
+          <div class="panelBody">
+            <div class="panelTitle">Shield & posture</div>
+
+            <div class="statGrid">
+              <div class="stat">
+                <div class="statLabel">Shield</div>
+                <div class="statValue">Warm</div>
+              </div>
+              <div class="stat">
+                <div class="statLabel">Stance</div>
+                <div class="statValue">Grounded</div>
+              </div>
+              <div class="stat">
+                <div class="statLabel">Tension</div>
+                <div class="statValue">Settling</div>
+              </div>
+              <div class="stat">
+                <div class="statLabel">Weather</div>
+                <div class="statValue">Clear</div>
+              </div>
+            </div>
+
+            <div class="panelDivider"></div>
+
+            <div class="panelQuote">“That’s not wrong. It’s just early.”</div>
+          </div>
+        </aside>
+
+        <!-- Column 4: Image panel -->
         <aside class="portrait" aria-label="Aerin portrait">
           <div class="frameTop">
             <div class="tag"><span class="dot"></span> Portrait</div>
@@ -604,172 +792,10 @@
             <img src="Photo1.png" alt="Aerin (Photo1.png)" />
           </div>
         </aside>
-
-        <!-- Right: Chat + Tools -->
-        <section class="chatPanel" aria-label="Chat panel">
-          <div class="chatHead">
-            <div class="tag"><span class="dot"></span> Threshold Chat</div>
-            <div class="right">
-              <div class="pill" id="statusPill">Ready</div>
-              <div class="pill gmMono">Tools below</div>
-            </div>
-          </div>
-
-          <div class="chatStack">
-            <div id="chat" aria-live="polite"></div>
-
-            <div class="gmTools" aria-label="GM toolkit">
-              <div class="gmTitleRow">
-                <div class="gmTitle">GM Toolkit (always visible)</div>
-                <div class="gmHint">Commands also work in chat: <span class="gmMono">/roll</span> <span class="gmMono">/cond</span> <span class="gmMono">/loot</span> <span class="gmMono">/encounter</span></div>
-              </div>
-
-              <div class="gmGrid">
-                <!-- 1+2 Dice + Roll Log -->
-                <div class="gmCard">
-                  <h3>1–2) Dice Roller + Log</h3>
-                  <div class="gmRow">
-                    <input id="diceExpr" class="gmInput gmMono" placeholder="1d20+7 | 2d6+4 | 4d8kh3+2 | 1d20+11 adv" />
-                    <button type="button" id="rollBtn" class="gmBtn">Roll</button>
-                    <button type="button" id="clearRollsBtn" class="gmBtn danger">Clear</button>
-                  </div>
-                  <div class="gmList" id="rollLog"></div>
-                </div>
-
-                <!-- 3 Conditions -->
-                <div class="gmCard">
-                  <h3>3) Condition Tracker</h3>
-                  <div class="gmRow">
-                    <select id="condSelect" class="gmSelect gmInput" style="min-width:220px; flex:0 1 auto;">
-                      <option value="Frightened">Frightened</option>
-                      <option value="Sickened">Sickened</option>
-                      <option value="Clumsy">Clumsy</option>
-                      <option value="Enfeebled">Enfeebled</option>
-                      <option value="Stupefied">Stupefied</option>
-                      <option value="Slowed">Slowed</option>
-                      <option value="Stunned">Stunned</option>
-                      <option value="Persistent: Bleed">Persistent: Bleed</option>
-                      <option value="Persistent: Fire">Persistent: Fire</option>
-                      <option value="Persistent: Acid">Persistent: Acid</option>
-                    </select>
-                    <button type="button" id="condPlus" class="gmBtn">+1</button>
-                    <button type="button" id="condMinus" class="gmBtn">-1</button>
-                    <button type="button" id="condClear" class="gmBtn danger">Clear</button>
-                  </div>
-                  <div id="condChips" style="margin-top:10px;"></div>
-                </div>
-
-                <!-- 4 Encounter -->
-                <div class="gmCard">
-                  <h3>4) Encounter + Initiative</h3>
-                  <div class="gmRow">
-                    <input id="initName" class="gmInput" placeholder='Name (e.g. Goblin Pyro)' />
-                    <input id="initValue" class="gmInput gmMono" placeholder="Init (e.g. 22)" style="max-width:140px; flex:0 1 auto;" />
-                    <button type="button" id="addInitBtn" class="gmBtn">Add</button>
-                  </div>
-                  <div class="gmRow" style="margin-top:10px;">
-                    <input id="initMod" class="gmInput gmMono" placeholder="+7" style="max-width:90px; flex:0 1 auto;" />
-                    <button type="button" id="rollInitBtn" class="gmBtn">Roll d20+mod</button>
-                    <span class="gmChip"><strong>Round</strong> <span id="roundNum">1</span></span>
-                    <span class="gmChip"><strong>Turn</strong> <span id="turnName">—</span></span>
-                  </div>
-                  <div class="gmRow" style="margin-top:10px;">
-                    <button type="button" id="nextTurnBtn" class="gmBtn">Next</button>
-                    <button type="button" id="prevTurnBtn" class="gmBtn">Prev</button>
-                    <button type="button" id="resetEncounterBtn" class="gmBtn danger">Reset</button>
-                  </div>
-                  <div class="gmList" id="initList"></div>
-                </div>
-
-                <!-- 5 Loot -->
-                <div class="gmCard">
-                  <h3>5) Loot Generator</h3>
-                  <div class="gmRow">
-                    <select id="lootTier" class="gmSelect gmInput" style="min-width:200px; flex:0 1 auto;">
-                      <option value="street">Street / Poor</option>
-                      <option value="standard" selected>Standard</option>
-                      <option value="hoard">Boss Hoard</option>
-                    </select>
-                    <button type="button" id="genLootBtn" class="gmBtn">Generate</button>
-                    <button type="button" id="clearLootBtn" class="gmBtn danger">Clear</button>
-                  </div>
-                  <div class="gmList" id="lootList"></div>
-                </div>
-
-                <!-- 6 Character -->
-                <div class="gmCard">
-                  <h3>6) Character Card (Shareable)</h3>
-                  <div class="gmRow">
-                    <input id="cName" class="gmInput" placeholder="Name" />
-                    <input id="cAncestry" class="gmInput" placeholder="Ancestry" />
-                  </div>
-                  <div class="gmRow" style="margin-top:10px;">
-                    <input id="cClass" class="gmInput" placeholder="Class" />
-                    <input id="cBackground" class="gmInput" placeholder="Background" />
-                  </div>
-                  <div class="gmRow" style="margin-top:10px;">
-                    <input id="cKey" class="gmInput" placeholder="Key Ability (e.g. STR)" />
-                    <input id="cAC" class="gmInput gmMono" placeholder="AC (e.g. 21)" />
-                    <input id="cPer" class="gmInput gmMono" placeholder="Perception (e.g. +9)" />
-                  </div>
-                  <div class="gmRow" style="margin-top:10px;">
-                    <input id="cSaves" class="gmInput gmMono" placeholder="Saves (e.g. F+11 R+7 W+8)" />
-                  </div>
-                  <div class="gmRow" style="margin-top:10px;">
-                    <input id="cSkills" class="gmInput" placeholder="Skills (comma separated)" />
-                  </div>
-                  <div class="gmRow" style="margin-top:10px;">
-                    <input id="cSigMove" class="gmInput" placeholder="Signature move" />
-                  </div>
-                  <div class="gmRow" style="margin-top:10px;">
-                    <button type="button" id="updateCardBtn" class="gmBtn">Update</button>
-                    <button type="button" id="copyShareBtn" class="gmBtn">Copy Share Link</button>
-                    <button type="button" id="clearCardBtn" class="gmBtn danger">Clear</button>
-                  </div>
-                  <div class="gmSmall" style="margin-top:10px;">
-                    Share link stores the build in the URL hash (no server).
-                  </div>
-                </div>
-
-                <!-- 7 Tavern Board -->
-                <div class="gmCard">
-                  <h3>7) Tavern Board (Local)</h3>
-                  <div class="gmRow">
-                    <select id="postType" class="gmSelect gmInput" style="min-width:140px; flex:0 1 auto;">
-                      <option value="LFG">LFG</option>
-                      <option value="Hook">Adventure Hook</option>
-                      <option value="NPC">NPC Idea</option>
-                      <option value="Homebrew">Homebrew</option>
-                      <option value="Offer">GM Offer</option>
-                    </select>
-                    <input id="postTitle" class="gmInput" placeholder="Title" />
-                  </div>
-                  <div class="gmRow" style="margin-top:10px;">
-                    <textarea id="postBody" class="gmTextarea" placeholder="Write your post… (stored in your browser)"></textarea>
-                  </div>
-                  <div class="gmRow" style="margin-top:10px;">
-                    <button type="button" id="addPostBtn" class="gmBtn">Post</button>
-                    <button type="button" id="clearPostsBtn" class="gmBtn danger">Clear</button>
-                  </div>
-                  <div class="gmList" id="postList"></div>
-                  <div class="gmSmall" style="margin-top:10px;">
-                    Chat shortcuts: <span class="gmMono">/help</span>, <span class="gmMono">/roll</span>, <span class="gmMono">/cond</span>, <span class="gmMono">/loot</span>, <span class="gmMono">/encounter</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div id="error" class="error"></div>
-
-          <form id="composer" class="composer">
-            <textarea id="input" placeholder="Speak. (Try /help)" autocomplete="off"></textarea>
-            <button id="send" type="submit">Send</button>
-          </form>
-        </section>
       </div>
     </div>
   </div>
+</body>
 
   <script>
     const WORKER_URL = "https://calm-violet-14a8.f5tyzzqpdw.workers.dev/";
@@ -1628,3 +1654,4 @@ In all responses, stay in character as Aerin.
   </script>
 </body>
 </html>
+
