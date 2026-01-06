@@ -152,32 +152,27 @@ Never mention you are an AI or a model. If asked, say you are a guide bound to t
 document.addEventListener("DOMContentLoaded", () => {
   const WORKER_URL = "https://calm-violet-14a8.f5tyzzqpdw.workers.dev";
 
-  const el = (id) => document.getElementById(id);
+  const messagesEl = document.getElementById("messages");
+  const loadBtn = document.getElementById("loadBtn");
+  const resetBtn = document.getElementById("resetBtn");
+  const sendBtn = document.getElementById("sendBtn");
+  const inputEl = document.getElementById("input");
+  const systemPromptEl = document.getElementById("systemPrompt");
+  const webgpuPill = document.getElementById("webgpuPill");
+  const modelPill = document.getElementById("modelPill");
 
-  const messagesEl = el("messages");
-  const loadBtn = el("loadBtn");
-  const resetBtn = el("resetBtn");
-  const sendBtn = el("sendBtn");
-  const inputEl = el("input");
-  const modelSelect = el("modelSelect");
-  const systemPromptEl = el("systemPrompt");
-  const webgpuPill = el("webgpuPill");
-  const modelPill = el("modelPill");
-
-  // If any of these are null, the script can't work — show a clear error
+  // Hard fail if elements aren't found
   const missing = [];
   if (!messagesEl) missing.push("messages");
   if (!loadBtn) missing.push("loadBtn");
   if (!resetBtn) missing.push("resetBtn");
   if (!sendBtn) missing.push("sendBtn");
   if (!inputEl) missing.push("input");
-  if (!modelSelect) missing.push("modelSelect");
   if (!systemPromptEl) missing.push("systemPrompt");
   if (!webgpuPill) missing.push("webgpuPill");
   if (!modelPill) missing.push("modelPill");
-
   if (missing.length) {
-    alert("JS error: missing elements: " + missing.join(", "));
+    alert("Missing elements: " + missing.join(", "));
     return;
   }
 
@@ -200,45 +195,29 @@ document.addEventListener("DOMContentLoaded", () => {
     return bubble;
   }
 
-  function setUI(loaded) {
-    inputEl.disabled = !loaded;
-    sendBtn.disabled = !loaded;
-    resetBtn.disabled = !loaded;
-
-    // Keep these enabled so you can change prompt/model if you want
-    loadBtn.disabled = false;
-    modelSelect.disabled = false;
-    systemPromptEl.disabled = false;
-  }
-
   function initChat() {
     messagesEl.innerHTML = "";
-    addMessage(
-      "assistant",
-      "Hail, traveler. I am Eldrin, keeper of wayward maps. Speak, and I shall guide you.\n\nChoice A: Ask about a quest.\nChoice B: Ask about the dungeon."
-    );
+    addMessage("assistant", "Hail, traveler. Speak, and I shall guide you.\n\nChoice A: Ask about a quest.\nChoice B: Ask about the dungeon.");
+  }
+
+  function setEnabled(on) {
+    inputEl.disabled = !on;
+    sendBtn.disabled = !on;
+    resetBtn.disabled = !on;
   }
 
   async function callWorker(system, message) {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 30000);
+    // Visible debug so you can tell it really tried to send
+    modelPill.textContent = "Model: sending…";
 
     const r = await fetch(WORKER_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ system, message }),
-      signal: controller.signal,
-    }).finally(() => clearTimeout(timeout));
+    });
 
     const data = await r.json().catch(() => ({}));
-
-    if (!r.ok) {
-      // Show the OpenAI/Worker error clearly in the chat
-      throw new Error(
-        data?.error ? JSON.stringify(data.error) : `HTTP ${r.status}`
-      );
-    }
-
+    if (!r.ok) throw new Error(JSON.stringify(data?.error || data || `HTTP ${r.status}`));
     return data.text || "";
   }
 
@@ -250,18 +229,16 @@ document.addEventListener("DOMContentLoaded", () => {
     addMessage("user", text);
     const bubble = addMessage("assistant", "…");
 
-    // prevent double-click spam
     sendBtn.disabled = true;
     inputEl.disabled = true;
 
     try {
       const reply = await callWorker(systemPromptEl.value.trim(), text);
       bubble.textContent = reply || "(No text returned)";
-    } catch (err) {
-      bubble.textContent =
-        err?.name === "AbortError"
-          ? "Error: request timed out."
-          : "Error: " + (err?.message || String(err));
+      modelPill.textContent = "Model: gpt-4o-mini";
+    } catch (e) {
+      bubble.textContent = "Error: " + (e?.message || e);
+      modelPill.textContent = "Model: error";
     } finally {
       sendBtn.disabled = false;
       inputEl.disabled = false;
@@ -272,8 +249,8 @@ document.addEventListener("DOMContentLoaded", () => {
   loadBtn.addEventListener("click", () => {
     webgpuPill.textContent = "Backend: Cloudflare Worker";
     modelPill.textContent = "Model: gpt-4o-mini";
-    setUI(true);
     initChat();
+    setEnabled(true);
     inputEl.focus();
   });
 
@@ -282,23 +259,19 @@ document.addEventListener("DOMContentLoaded", () => {
     inputEl.focus();
   });
 
-  sendBtn.addEventListener("click", () => {
-  alert("Send clicked");
-  send();
-});
-
-
+  sendBtn.addEventListener("click", send);
   inputEl.addEventListener("keydown", (e) => {
     if (e.key === "Enter") send();
   });
 
   // initial state
-  setUI(false);
+  setEnabled(false);
 });
 </script>
 
 </body>
 </html>
+
 
 
 
