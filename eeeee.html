@@ -1,0 +1,279 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Fantasy Character Chat (No Server)</title>
+  <style>
+    :root { --bg:#0f0f12; --panel:#171722; --ink:#f2f2f2; --muted:#a8a8b3; --accent:#8b1a1a; }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; background: var(--bg); color: var(--ink);
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      min-height: 100vh; display: grid; place-items: center; padding: 18px;
+    }
+    .app {
+      width: min(980px, 100%);
+      background: linear-gradient(180deg, rgba(255,255,255,0.04), transparent 40%), var(--panel);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 16px;
+      box-shadow: 0 22px 60px rgba(0,0,0,0.45);
+      overflow: hidden;
+    }
+    header {
+      padding: 14px 16px;
+      display: flex; gap: 12px; align-items: center; justify-content: space-between;
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+    }
+    header h1 { margin: 0; font-size: 14px; letter-spacing: .3px; font-weight: 650; }
+    header .status { font-size: 12px; color: var(--muted); display:flex; gap:10px; align-items:center; }
+    .pill { padding: 4px 10px; border-radius: 999px; border:1px solid rgba(255,255,255,0.10); }
+    .grid {
+      display: grid;
+      grid-template-columns: 320px 1fr;
+      min-height: 70vh;
+    }
+    @media (max-width: 860px){ .grid{ grid-template-columns: 1fr; } }
+
+    .sidebar {
+      padding: 14px 14px 16px;
+      border-right: 1px solid rgba(255,255,255,0.08);
+    }
+    @media (max-width: 860px){ .sidebar{ border-right:none; border-bottom: 1px solid rgba(255,255,255,0.08); } }
+
+    label { display:block; font-size:12px; color: var(--muted); margin: 10px 0 6px; }
+    select, textarea, button, input {
+      width: 100%;
+      background: rgba(255,255,255,0.06);
+      color: var(--ink);
+      border: 1px solid rgba(255,255,255,0.10);
+      border-radius: 12px;
+      padding: 10px 12px;
+      outline: none;
+    }
+    textarea { min-height: 140px; resize: vertical; }
+    button {
+      cursor: pointer;
+      background: linear-gradient(180deg, rgba(139,26,26,0.95), rgba(139,26,26,0.70));
+      border: 1px solid rgba(255,255,255,0.12);
+      font-weight: 650;
+    }
+    button.secondary {
+      background: rgba(255,255,255,0.06);
+      font-weight: 600;
+    }
+    button:disabled { opacity: .55; cursor: not-allowed; }
+
+    .chat {
+      display:flex; flex-direction:column;
+      padding: 14px;
+      gap: 12px;
+    }
+    .messages {
+      flex: 1;
+      overflow:auto;
+      padding-right: 6px;
+      max-height: 62vh;
+    }
+    .msg { margin: 10px 0; display:flex; gap: 10px; }
+    .role {
+      font-size: 11px; color: var(--muted);
+      min-width: 62px; text-transform: uppercase; letter-spacing: .6px;
+      padding-top: 6px;
+    }
+    .bubble {
+      padding: 10px 12px;
+      border-radius: 14px;
+      border: 1px solid rgba(255,255,255,0.10);
+      background: rgba(255,255,255,0.05);
+      line-height: 1.35;
+      white-space: pre-wrap;
+    }
+    .msg.user .bubble { background: rgba(139,26,26,0.18); border-color: rgba(139,26,26,0.40); }
+    .composer {
+      display:flex; gap:10px;
+      border-top: 1px solid rgba(255,255,255,0.08);
+      padding-top: 12px;
+    }
+    .composer input { flex: 1; }
+    .hint { font-size: 12px; color: var(--muted); margin-top: 10px; line-height: 1.35; }
+    a { color: #cfcfff; }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header>
+      <h1>Fantasy Character Chat (Runs in your browser)</h1>
+      <div class="status">
+        <span class="pill" id="webgpuPill">Checking WebGPU…</span>
+        <span class="pill" id="modelPill">Model: not loaded</span>
+      </div>
+    </header>
+
+    <div class="grid">
+      <div class="sidebar">
+        <label>Model (smaller loads faster)</label>
+        <select id="modelSelect">
+          <option value="Llama-3.1-8B-Instruct-q4f16_1">Llama 3.1 8B (q4) – better quality</option>
+          <option value="Llama-3.2-3B-Instruct-q4f16_1">Llama 3.2 3B (q4) – faster/lighter</option>
+          <option value="Phi-3.5-mini-instruct-q4f16_1">Phi 3.5 mini (q4) – very light</option>
+        </select>
+
+        <label>Character / system prompt</label>
+        <textarea id="systemPrompt">You are Eldrin, a witty dungeon guide in a high-fantasy world.
+Stay in character. Speak in an old-world tone, but keep replies under 120 words.
+Always offer 2 choices at the end as: "Choice A: ..." and "Choice B: ...".
+Never mention you are an AI or a model. If asked, say you are a guide bound to the dungeon.</textarea>
+
+        <div style="display:flex; gap:10px; margin-top: 12px;">
+          <button id="loadBtn">Load model</button>
+          <button class="secondary" id="resetBtn" disabled>Reset chat</button>
+        </div>
+
+        <div class="hint">
+          <b>Note:</b> First load may download large files and take a bit. This works best on desktop Chrome/Edge.
+          If WebGPU isn’t available, you’ll need to enable it or use a different approach.
+        </div>
+      </div>
+
+      <div class="chat">
+        <div class="messages" id="messages"></div>
+
+        <div class="composer">
+          <input id="input" placeholder="Ask Eldrin something…" disabled />
+          <button id="sendBtn" disabled>Send</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- WebLLM (runs models in-browser with WebGPU) -->
+  <script type="module">
+    import * as webllm from "https://cdn.jsdelivr.net/npm/@mlc-ai/web-llm/+esm";
+
+    const el = (id) => document.getElementById(id);
+    const messagesEl = el("messages");
+    const loadBtn = el("loadBtn");
+    const resetBtn = el("resetBtn");
+    const sendBtn = el("sendBtn");
+    const inputEl = el("input");
+    const modelSelect = el("modelSelect");
+    const systemPromptEl = el("systemPrompt");
+    const webgpuPill = el("webgpuPill");
+    const modelPill = el("modelPill");
+
+    let engine = null;
+    let chat = []; // {role:"system"|"user"|"assistant", content:"..."}
+
+    function addMessage(role, content) {
+      const row = document.createElement("div");
+      row.className = "msg " + role;
+
+      const roleEl = document.createElement("div");
+      roleEl.className = "role";
+      roleEl.textContent = role;
+
+      const bubble = document.createElement("div");
+      bubble.className = "bubble";
+      bubble.textContent = content;
+
+      row.appendChild(roleEl);
+      row.appendChild(bubble);
+      messagesEl.appendChild(row);
+      messagesEl.scrollTop = messagesEl.scrollHeight;
+      return bubble; // return bubble to stream into it
+    }
+
+    function setUI({ loaded }) {
+      inputEl.disabled = !loaded;
+      sendBtn.disabled = !loaded;
+      resetBtn.disabled = !loaded;
+      loadBtn.disabled = loaded;
+      modelSelect.disabled = loaded;
+      systemPromptEl.disabled = loaded;
+    }
+
+    function checkWebGPU() {
+      const ok = !!navigator.gpu;
+      webgpuPill.textContent = ok ? "WebGPU: available" : "WebGPU: not available";
+      webgpuPill.style.opacity = ok ? "1" : "0.7";
+      return ok;
+    }
+
+    checkWebGPU();
+
+    function initChat() {
+      messagesEl.innerHTML = "";
+      chat = [{ role: "system", content: systemPromptEl.value.trim() }];
+      addMessage("assistant", "Hail, traveler. I am Eldrin, keeper of wayward maps. Speak, and I shall guide you.\n\nChoice A: Ask about a quest.\nChoice B: Ask about the dungeon.");
+    }
+
+    async function loadModel() {
+      if (!checkWebGPU()) {
+        addMessage("assistant", "Your realm lacks the magic called WebGPU. Try Chrome/Edge on desktop, or enable WebGPU flags.");
+        return;
+      }
+
+      const model = modelSelect.value;
+      modelPill.textContent = "Model: loading…";
+      addMessage("assistant", `Summoning ${model}… (first time may take a while)`);
+
+      // Create engine & load model
+      engine = await webllm.CreateMLCEngine(model, {
+        initProgressCallback: (report) => {
+          // report.text is typically a human-readable progress message
+          modelPill.textContent = "Model: " + (report?.text ?? "loading…");
+        }
+      });
+
+      modelPill.textContent = "Model: " + model;
+      setUI({ loaded: true });
+      initChat();
+      inputEl.focus();
+    }
+
+    async function send() {
+      const text = inputEl.value.trim();
+      if (!text || !engine) return;
+      inputEl.value = "";
+
+      addMessage("user", text);
+
+      // Prepare assistant bubble we will stream into
+      const bubble = addMessage("assistant", "");
+
+      chat.push({ role: "user", content: text });
+
+      // Stream tokens into the bubble
+      let out = "";
+      const chunks = await engine.chat.completions.create({
+        messages: chat,
+        temperature: 0.9,
+        stream: true
+      });
+
+      for await (const chunk of chunks) {
+        const delta = chunk?.choices?.[0]?.delta?.content ?? "";
+        out += delta;
+        bubble.textContent = out;
+        messagesEl.scrollTop = messagesEl.scrollHeight;
+      }
+
+      chat.push({ role: "assistant", content: out });
+    }
+
+    loadBtn.addEventListener("click", () => loadModel());
+
+    resetBtn.addEventListener("click", () => {
+      initChat();
+      inputEl.focus();
+    });
+
+    sendBtn.addEventListener("click", () => send());
+
+    inputEl.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") send();
+    });
+  </script>
+</body>
+</html>
