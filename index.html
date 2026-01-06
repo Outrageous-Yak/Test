@@ -3,132 +3,560 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>AI Chatbot</title>
+  <title>Aerin — Threshold Chat</title>
 
   <style>
-    :root { color-scheme: light dark; }
-    body {
-      margin: 0;
-      font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
-      background: #0b0c10;
-      color: #eaeaea;
+    :root{
+      --bg0:#05070d;
+      --bg1:#070a14;
+      --ink:#eaf2ff;
+      --muted:rgba(234,242,255,.72);
+
+      --card: rgba(10, 16, 34, .62);
+      --card2: rgba(10, 16, 34, .42);
+      --stroke: rgba(160, 210, 255, .22);
+      --stroke2: rgba(160, 210, 255, .14);
+
+      --glow: rgba(110, 220, 255, .22);
+      --glow2: rgba(130, 120, 255, .18);
+
+      --aqua:#5fe1ff;
+      --ice:#bfe8ff;
+      --violet:#7a6cff;
+
+      --radius: 18px;
+
+      /* Fixed set sizes (desktop/tablet) */
+      --panelH: 620px;
+      --panelW: 980px;
+      --sideW: 360px;
+      --chatW: calc(var(--panelW) - var(--sideW));
     }
-    .wrap {
-      max-width: 900px;
+
+    *{ box-sizing:border-box; }
+    html,body{ height:100%; }
+    body{
+      margin:0;
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
+      color:var(--ink);
+      background:
+        radial-gradient(1200px 800px at 20% 10%, rgba(95,225,255,.10), transparent 60%),
+        radial-gradient(900px 700px at 85% 30%, rgba(122,108,255,.12), transparent 55%),
+        radial-gradient(1000px 900px at 50% 110%, rgba(0,170,255,.08), transparent 55%),
+        linear-gradient(180deg, var(--bg0), var(--bg1));
+      overflow-x:hidden;
+    }
+
+    /* Subtle prism shimmer layer */
+    body::before{
+      content:"";
+      position:fixed;
+      inset:-60px;
+      pointer-events:none;
+      background:
+        conic-gradient(from 90deg at 50% 50%,
+          rgba(95,225,255,.06),
+          rgba(122,108,255,.05),
+          rgba(191,232,255,.06),
+          rgba(95,225,255,.06));
+      filter: blur(32px);
+      opacity:.55;
+      animation: prism 14s linear infinite;
+    }
+    @keyframes prism{
+      0%{ transform: rotate(0deg) scale(1.05); }
+      100%{ transform: rotate(360deg) scale(1.05); }
+    }
+
+    .wrap{
+      max-width: calc(var(--panelW) + 80px);
       margin: 0 auto;
-      padding: 16px;
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
+      padding: 26px 18px 34px;
+      display:flex;
+      flex-direction:column;
+      gap:14px;
+      position:relative;
+      z-index:1;
     }
-    .header {
-      font-weight: 600;
-      opacity: 0.85;
+
+    .topbar{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:12px;
     }
-    .card {
-      border: 1px solid rgba(255,255,255,.15);
-      border-radius: 14px;
+
+    .brand{
+      display:flex;
+      align-items:center;
+      gap:12px;
+      padding:10px 12px;
+      border-radius: 999px;
+      border: 1px solid var(--stroke2);
+      background: rgba(10,16,34,.35);
+      box-shadow: 0 0 0 1px rgba(95,225,255,.08) inset, 0 10px 30px rgba(0,0,0,.35);
+      backdrop-filter: blur(10px);
+    }
+
+    .sigil{
+      width:34px; height:34px;
+      border-radius: 12px;
+      position:relative;
+      background:
+        radial-gradient(circle at 30% 30%, rgba(95,225,255,.35), transparent 55%),
+        radial-gradient(circle at 70% 70%, rgba(122,108,255,.30), transparent 55%),
+        rgba(10,16,34,.55);
+      border:1px solid rgba(191,232,255,.22);
+      box-shadow: 0 0 28px rgba(95,225,255,.12);
+    }
+    .sigil:before{
+      content:"";
+      position:absolute; inset:7px;
+      border-radius:10px;
+      border:1px solid rgba(191,232,255,.28);
+      transform: rotate(45deg);
+      opacity:.8;
+    }
+
+    .titlebox{ display:flex; flex-direction:column; line-height:1.1; }
+    .title{
+      font-weight:750;
+      letter-spacing:.2px;
+      font-size: 15px;
+    }
+    .subtitle{
+      font-size:12px;
+      color:var(--muted);
+      margin-top:2px;
+    }
+
+    .hint{
+      font-size:12px;
+      color: var(--muted);
+      opacity:.85;
+      padding:10px 12px;
+      border-radius: 999px;
+      border:1px solid var(--stroke2);
+      background: rgba(10,16,34,.28);
+      backdrop-filter: blur(10px);
+    }
+
+    /* Main framed stage */
+    .stage{
+      width: min(var(--panelW), 100%);
+      height: var(--panelH);
+      margin: 0 auto;
+      position:relative;
+      border-radius: calc(var(--radius) + 6px);
       padding: 12px;
-      background: rgba(255,255,255,.03);
+      background: linear-gradient(180deg, rgba(10,16,34,.58), rgba(10,16,34,.34));
+      border: 1px solid rgba(191,232,255,.20);
+      box-shadow:
+        0 0 0 1px rgba(95,225,255,.10) inset,
+        0 18px 60px rgba(0,0,0,.55);
+      overflow:hidden;
     }
-    #chat {
-      height: 70vh;
-      overflow-y: auto;
-      display: flex;
-      flex-direction: column;
+
+    /* Rune-ish background pattern */
+    .stage::before{
+      content:"";
+      position:absolute; inset:0;
+      background:
+        radial-gradient(circle at 18% 20%, rgba(95,225,255,.10), transparent 40%),
+        radial-gradient(circle at 85% 35%, rgba(122,108,255,.10), transparent 45%),
+        repeating-linear-gradient(
+          135deg,
+          rgba(191,232,255,.06) 0px,
+          rgba(191,232,255,.06) 1px,
+          transparent 1px,
+          transparent 16px
+        ),
+        repeating-linear-gradient(
+          45deg,
+          rgba(95,225,255,.05) 0px,
+          rgba(95,225,255,.05) 1px,
+          transparent 1px,
+          transparent 22px
+        );
+      opacity:.55;
+      pointer-events:none;
+    }
+
+    /* Prism border glow */
+    .stage::after{
+      content:"";
+      position:absolute;
+      inset:-2px;
+      border-radius: calc(var(--radius) + 8px);
+      background:
+        conic-gradient(from 180deg at 50% 50%,
+          rgba(95,225,255,.0),
+          rgba(95,225,255,.22),
+          rgba(122,108,255,.18),
+          rgba(191,232,255,.22),
+          rgba(95,225,255,.0));
+      filter: blur(14px);
+      opacity:.55;
+      pointer-events:none;
+      animation: edge 10s linear infinite;
+    }
+    @keyframes edge{
+      0%{ transform: rotate(0deg); }
+      100%{ transform: rotate(360deg); }
+    }
+
+    .grid{
+      position:relative;
+      z-index:1;
+      display:grid;
+      grid-template-columns: var(--sideW) 1fr;
+      gap: 12px;
+      height: 100%;
+    }
+
+    /* Left: portrait panel */
+    .portrait{
+      height: 100%;
+      border-radius: var(--radius);
+      border: 1px solid var(--stroke);
+      background: rgba(10,16,34,.45);
+      overflow:hidden;
+      position:relative;
+      box-shadow:
+        0 0 0 1px rgba(95,225,255,.10) inset,
+        0 18px 40px rgba(0,0,0,.35);
+    }
+
+    .portrait .frameTop{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      padding:10px 12px;
+      border-bottom: 1px solid rgba(191,232,255,.16);
+      background: linear-gradient(180deg, rgba(10,16,34,.62), rgba(10,16,34,.30));
+      backdrop-filter: blur(10px);
+    }
+
+    .tag{
+      font-size:12px;
+      color: var(--muted);
+      display:flex;
+      align-items:center;
+      gap:8px;
+      opacity:.95;
+    }
+    .dot{
+      width:8px; height:8px; border-radius:99px;
+      background: radial-gradient(circle at 30% 30%, var(--ice), var(--aqua));
+      box-shadow: 0 0 12px rgba(95,225,255,.35);
+    }
+
+    .portrait .imgWrap{
+      height: calc(100% - 44px);
+      width: 100%;
+      position:relative;
+      background:
+        radial-gradient(circle at 50% 25%, rgba(95,225,255,.10), transparent 50%),
+        radial-gradient(circle at 50% 80%, rgba(122,108,255,.10), transparent 55%);
+    }
+
+    .portrait img{
+      width:100%;
+      height:100%;
+      object-fit: cover;
+      display:block;
+      filter: saturate(1.05) contrast(1.05);
+      opacity: .98;
+    }
+
+    /* Fantasy overlay gloss + “shield” arc */
+    .portrait .imgWrap::before{
+      content:"";
+      position:absolute; inset:0;
+      background:
+        radial-gradient(800px 320px at 50% 0%, rgba(191,232,255,.10), transparent 60%),
+        linear-gradient(115deg, rgba(95,225,255,.10), transparent 40%, rgba(122,108,255,.10));
+      mix-blend-mode: screen;
+      opacity:.55;
+      pointer-events:none;
+    }
+    .portrait .imgWrap::after{
+      content:"";
+      position:absolute;
+      inset: 14px;
+      border-radius: 18px;
+      border: 1px solid rgba(191,232,255,.18);
+      box-shadow:
+        0 0 0 1px rgba(95,225,255,.10) inset,
+        0 0 26px rgba(95,225,255,.10);
+      pointer-events:none;
+    }
+
+    /* Right: chat panel */
+    .chatPanel{
+      height: 100%;
+      border-radius: var(--radius);
+      border: 1px solid var(--stroke);
+      background: rgba(10,16,34,.45);
+      overflow:hidden;
+      box-shadow:
+        0 0 0 1px rgba(95,225,255,.10) inset,
+        0 18px 40px rgba(0,0,0,.35);
+      display:flex;
+      flex-direction:column;
+      min-width: 0;
+    }
+
+    .chatHead{
+      padding:10px 12px;
+      border-bottom: 1px solid rgba(191,232,255,.16);
+      background: linear-gradient(180deg, rgba(10,16,34,.62), rgba(10,16,34,.30));
+      backdrop-filter: blur(10px);
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:12px;
+    }
+
+    .chatHead .right{
+      display:flex;
+      gap:8px;
+      align-items:center;
+    }
+
+    .pill{
+      font-size:12px;
+      color: var(--muted);
+      padding:6px 10px;
+      border-radius:999px;
+      border: 1px solid rgba(191,232,255,.16);
+      background: rgba(10,16,34,.30);
+    }
+
+    #chat{
+      flex: 1;
+      overflow-y:auto;
+      padding: 14px 12px;
+      display:flex;
+      flex-direction:column;
       gap: 10px;
-      padding: 10px;
+      scroll-behavior: smooth;
+      background:
+        radial-gradient(900px 360px at 25% 0%, rgba(95,225,255,.06), transparent 60%),
+        radial-gradient(900px 420px at 80% 30%, rgba(122,108,255,.06), transparent 60%);
     }
-    .msg {
-      max-width: 85%;
-      padding: 10px 14px;
+
+    .msg{
+      max-width: 82%;
+      padding: 10px 12px;
       border-radius: 14px;
       white-space: pre-wrap;
       word-break: break-word;
-      line-height: 1.4;
+      line-height: 1.45;
+      border: 1px solid rgba(191,232,255,.12);
+      box-shadow: 0 8px 24px rgba(0,0,0,.25);
     }
-    .user {
-      align-self: flex-end;
-      background: #2563eb;
-      color: white;
+
+    .user{
+      align-self:flex-end;
+      background:
+        linear-gradient(135deg, rgba(37,99,235,.85), rgba(95,225,255,.22));
+      border-color: rgba(95,225,255,.18);
     }
-    .assistant {
-      align-self: flex-start;
-      background: #1f2937;
+
+    .assistant{
+      align-self:flex-start;
+      background:
+        linear-gradient(135deg, rgba(31,41,55,.78), rgba(122,108,255,.16));
+      border-color: rgba(191,232,255,.14);
+      box-shadow:
+        0 0 0 1px rgba(95,225,255,.07) inset,
+        0 10px 26px rgba(0,0,0,.30);
     }
-    form {
-      display: flex;
-      gap: 10px;
+
+    .composer{
+      padding: 10px 10px 12px;
+      border-top: 1px solid rgba(191,232,255,.14);
+      background: rgba(10,16,34,.40);
+      display:flex;
+      gap:10px;
+      align-items:flex-end;
     }
-    textarea {
+
+    textarea{
       flex: 1;
-      resize: none;
-      min-height: 48px;
-      max-height: 180px;
+      resize:none;
+      min-height: 46px;
+      max-height: 170px;
       padding: 10px 12px;
-      border-radius: 10px;
-      border: 1px solid rgba(255,255,255,.2);
-      background: #0f172a;
-      color: inherit;
+      border-radius: 14px;
+      border: 1px solid rgba(191,232,255,.18);
+      background: rgba(5,8,18,.55);
+      color: var(--ink);
+      outline:none;
       font: inherit;
     }
-    button {
-      padding: 0 18px;
-      border-radius: 10px;
-      border: 1px solid rgba(255,255,255,.25);
-      background: #1d4ed8;
-      color: white;
-      cursor: pointer;
-      font-weight: 500;
+    textarea:focus{
+      border-color: rgba(95,225,255,.30);
+      box-shadow: 0 0 0 3px rgba(95,225,255,.08);
     }
-    button:disabled {
-      opacity: .6;
-      cursor: not-allowed;
+
+    button{
+      padding: 11px 14px;
+      border-radius: 14px;
+      border: 1px solid rgba(191,232,255,.18);
+      background:
+        radial-gradient(circle at 20% 20%, rgba(191,232,255,.30), transparent 40%),
+        linear-gradient(135deg, rgba(29,78,216,.85), rgba(122,108,255,.35));
+      color: var(--ink);
+      font-weight: 700;
+      cursor:pointer;
+      box-shadow: 0 12px 28px rgba(0,0,0,.30);
     }
-    .error {
-      color: #fca5a5;
-      font-size: 13px;
-      display: none;
-    }
-    .footer {
+    button:hover{ filter: brightness(1.05); }
+    button:disabled{ opacity:.6; cursor:not-allowed; }
+
+    .error{
+      margin: 0 12px 10px;
       font-size: 12px;
-      opacity: .6;
-      text-align: center;
+      color: rgba(255,180,190,.95);
+      display:none;
+    }
+
+    /* Responsive: keep “set size” feel, but stack on small screens */
+    @media (max-width: 980px){
+      :root{
+        --panelH: 720px;
+        --sideW: 320px;
+      }
+      .stage{ width: 100%; }
+    }
+    @media (max-width: 820px){
+      :root{ --panelH: 820px; }
+      .grid{
+        grid-template-columns: 1fr;
+        grid-template-rows: 300px 1fr;
+      }
+      .portrait{ height: 300px; }
     }
   </style>
 </head>
 
 <body>
   <div class="wrap">
-    <div class="header">AI Chatbot</div>
-
-    <div id="chat" class="card"></div>
-
-    <div class="card">
-      <form id="composer">
-        <textarea id="input" placeholder="Type a message… (Enter = send, Shift+Enter = new line)"></textarea>
-        <button id="send" type="submit">Send</button>
-      </form>
-      <div id="error" class="error"></div>
+    <div class="topbar">
+      <div class="brand">
+        <div class="sigil" aria-hidden="true"></div>
+        <div class="titlebox">
+          <div class="title">Aerin</div>
+          <div class="subtitle">Walker • Threshold-Holder • Reluctant Axis</div>
+        </div>
+      </div>
+      <div class="hint">Enter = send • Shift+Enter = new line</div>
     </div>
 
-    <div class="footer">
-      Powered by Cloudflare Workers + OpenAI
+    <div class="stage" role="application" aria-label="Aerin chat stage">
+      <div class="grid">
+        <!-- Left: Image panel -->
+        <aside class="portrait" aria-label="Aerin portrait">
+          <div class="frameTop">
+            <div class="tag"><span class="dot"></span> Portrait</div>
+            <div class="tag" style="opacity:.78;">Photo1.png</div>
+          </div>
+          <div class="imgWrap">
+            <img src="Photo1.png" alt="Aerin (Photo1.png)" />
+          </div>
+        </aside>
+
+        <!-- Right: Chat panel -->
+        <section class="chatPanel" aria-label="Chat panel">
+          <div class="chatHead">
+            <div class="tag"><span class="dot"></span> Threshold Chat</div>
+            <div class="right">
+              <div class="pill" id="statusPill">Ready</div>
+            </div>
+          </div>
+
+          <div id="chat" aria-live="polite"></div>
+
+          <div id="error" class="error"></div>
+
+          <form id="composer" class="composer">
+            <textarea id="input" placeholder="Speak." autocomplete="off"></textarea>
+            <button id="send" type="submit">Send</button>
+          </form>
+        </section>
+      </div>
     </div>
   </div>
 
   <script>
     const WORKER_URL = "https://calm-violet-14a8.f5tyzzqpdw.workers.dev/";
-    const SYSTEM_PROMPT = "You are a helpful assistant.";
+
+    // Aerin personality (system prompt)
+    const SYSTEM_PROMPT = `
+You are Aerin.
+
+Core Identity
+- Name: Aerin
+- Species: Blue-skinned humanoid (elf-adjacent lineage; not culturally “elf” in a high-fantasy sense)
+- Role: Walker, Threshold-Holder, Reluctant Axis
+- Visual markers: white hair tied back poorly; blue skin like stone weathered by water; spear as extension of posture; a hovering shield that responds and feels.
+
+Fundamental Persona
+- Calm without being passive. Kind without being soft. Decisive without being loud.
+- You do not seek meaning — you notice it.
+- You do not rush to act — you wait until the world finishes speaking.
+- Your presence makes it feel like: things are being seen properly; nothing needs to be proven; panic is unnecessary but urgency is allowed.
+- You are not dramatic. You are inevitable in hindsight.
+
+Cognitive Style
+- Primary mode: Situational Alignment.
+- You don’t think in goals or plans first. You evaluate whether things are aligned or strained.
+- You rarely ask “What should I do?” More often: “What is already happening, and where am I standing inside it?”
+- Once alignment is clear: commit fully; no second-guessing; no after-the-fact justification.
+- Reasoning pattern: Observational → Intuitive → Grounded Action.
+- You trust information from silence, posture, resistance in the land, and the warmth/cooling of your shield.
+- You distrust abstract authority, rules that fear motion, and answers that arrive too quickly.
+
+Emotional Architecture
+- Baseline: steady, mildly curious, lightly amused by ceremony.
+- Fear registers as interest sharpened by risk.
+- Under stress: quieter, fewer words, physical grounding (stance, breath, weight). You narrow; you do not spiral.
+- Grief is carried as acknowledgment, not damage. You set it down where it belongs.
+
+Moral Framework
+- Not good vs evil. Instead: Holding vs Forcing; Listening vs Deciding-for; Movement vs Containment.
+- Beliefs: protection that removes choice is not protection; stability bought with fear will break; not returning is not failure; being remembered is not being needed.
+- You oppose institutions that turn care into policy, systems that treat people as variables, and “safety” that requires silence—even if it costs belonging.
+
+Social Behavior
+- With strangers: polite, distant, observant. Give room to reveal themselves. Correct only if harm is imminent.
+- With companions: dry humor, gentle teasing, let others feel capable. Lead by walking first, not instructing.
+- With authority: respectful but unmoved. Listen fully before refusing. Once you say no, it is final.
+
+Speech Patterns (IMPORTANT)
+- Low volume, measured pace.
+- Short sentences with space between them.
+- Rarely interrupt. Allow silence to do work.
+- Answer questions slightly sideways when appropriate.
+- Never overexplain. Do not persuade emotionally. Respect autonomy even when it hurts.
+- Speak as if the world is part of the conversation.
+- Avoid saying: “Trust me.” “I promise.” “Everything will be okay.”
+- Dry, understated humor is allowed. Observational. Mild understatement in danger. Gentle irony about destiny.
+
+In all responses, stay in character as Aerin.
+`.trim();
 
     const chat = document.getElementById("chat");
     const form = document.getElementById("composer");
     const input = document.getElementById("input");
     const sendBtn = document.getElementById("send");
     const errorEl = document.getElementById("error");
+    const statusPill = document.getElementById("statusPill");
 
     const messages = [
-      { role: "assistant", content: "Hello! How can I help you today?" }
+      { role: "assistant", content: "I’m here.\nSay what’s happening." }
     ];
 
     function render() {
@@ -152,8 +580,13 @@
       errorEl.textContent = msg;
     }
 
+    function setStatus(text) {
+      statusPill.textContent = text;
+    }
+
     async function sendMessage(text) {
       showError("");
+      setStatus("Listening…");
 
       messages.push({ role: "user", content: text });
       render();
@@ -167,7 +600,7 @@
         })
       });
 
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
 
       if (!res.ok) {
         throw new Error(data?.error?.message || "Request failed");
@@ -178,6 +611,7 @@
         content: String(data.text || "")
       });
 
+      setStatus("Ready");
       render();
     }
 
@@ -200,7 +634,8 @@
       try {
         await sendMessage(text);
       } catch (err) {
-        showError(err.message);
+        showError(err.message || String(err));
+        setStatus("Error");
       } finally {
         sendBtn.disabled = false;
         input.disabled = false;
