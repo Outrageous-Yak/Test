@@ -282,7 +282,11 @@ document.addEventListener("DOMContentLoaded", () => {
     inputEl.focus();
   });
 
-  sendBtn.addEventListener("click", send);
+  sendBtn.addEventListener("click", () => {
+  alert("Send clicked");
+  send();
+});
+
 
   inputEl.addEventListener("keydown", (e) => {
     if (e.key === "Enter") send();
@@ -295,6 +299,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
 </body>
 </html>
+
 
 
 
