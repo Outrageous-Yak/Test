@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Fantasy Character Chat (GitHub Pages + Worker)</title>
+  <title>Fantasy Chat (GitHub Pages + Worker)</title>
   <style>
     :root { --bg:#0f0f12; --panel:#171722; --ink:#f2f2f2; --muted:#a8a8b3; --accent:#8b1a1a; }
     * { box-sizing: border-box; }
@@ -28,22 +28,12 @@
     header h1 { margin: 0; font-size: 14px; letter-spacing: .3px; font-weight: 650; }
     header .status { font-size: 12px; color: var(--muted); display:flex; gap:10px; align-items:center; }
     .pill { padding: 4px 10px; border-radius: 999px; border:1px solid rgba(255,255,255,0.10); }
-
-    .grid {
-      display: grid;
-      grid-template-columns: 320px 1fr;
-      min-height: 70vh;
-    }
+    .grid { display: grid; grid-template-columns: 320px 1fr; min-height: 70vh; }
     @media (max-width: 860px){ .grid{ grid-template-columns: 1fr; } }
-
-    .sidebar {
-      padding: 14px 14px 16px;
-      border-right: 1px solid rgba(255,255,255,0.08);
-    }
+    .sidebar { padding: 14px 14px 16px; border-right: 1px solid rgba(255,255,255,0.08); }
     @media (max-width: 860px){ .sidebar{ border-right:none; border-bottom: 1px solid rgba(255,255,255,0.08); } }
-
     label { display:block; font-size:12px; color: var(--muted); margin: 10px 0 6px; }
-    select, textarea, button, input {
+    textarea, button, input {
       width: 100%;
       background: rgba(255,255,255,0.06);
       color: var(--ink);
@@ -59,67 +49,41 @@
       border: 1px solid rgba(255,255,255,0.12);
       font-weight: 650;
     }
-    button.secondary {
-      background: rgba(255,255,255,0.06);
-      font-weight: 600;
-    }
+    button.secondary { background: rgba(255,255,255,0.06); font-weight: 600; }
     button:disabled { opacity: .55; cursor: not-allowed; }
-
-    .chat {
-      display:flex; flex-direction:column;
-      padding: 14px;
-      gap: 12px;
-    }
-    .messages {
-      flex: 1;
-      overflow:auto;
-      padding-right: 6px;
-      max-height: 62vh;
-    }
+    .chat { display:flex; flex-direction:column; padding: 14px; gap: 12px; }
+    .messages { flex: 1; overflow:auto; padding-right: 6px; max-height: 62vh; }
     .msg { margin: 10px 0; display:flex; gap: 10px; }
     .role {
       font-size: 11px; color: var(--muted);
-      min-width: 62px; text-transform: uppercase; letter-spacing: .6px;
-      padding-top: 6px;
+      min-width: 62px; text-transform: uppercase; letter-spacing: .6px; padding-top: 6px;
     }
     .bubble {
-      padding: 10px 12px;
-      border-radius: 14px;
+      padding: 10px 12px; border-radius: 14px;
       border: 1px solid rgba(255,255,255,0.10);
       background: rgba(255,255,255,0.05);
-      line-height: 1.35;
-      white-space: pre-wrap;
+      line-height: 1.35; white-space: pre-wrap;
     }
     .msg.user .bubble { background: rgba(139,26,26,0.18); border-color: rgba(139,26,26,0.40); }
-
-    .composer {
-      display:flex; gap:10px;
-      border-top: 1px solid rgba(255,255,255,0.08);
-      padding-top: 12px;
-    }
+    .composer { display:flex; gap:10px; border-top: 1px solid rgba(255,255,255,0.08); padding-top: 12px; }
     .composer input { flex: 1; }
     .hint { font-size: 12px; color: var(--muted); margin-top: 10px; line-height: 1.35; }
-    a { color: #cfcfff; }
-    .tiny { font-size: 11px; color: var(--muted); margin-top: 8px; }
+    .tiny { font-size: 11px; color: var(--muted); margin-top: 8px; word-break: break-all; }
   </style>
 </head>
+
 <body>
   <div class="app">
     <header>
-      <h1>Fantasy Character Chat (GitHub Pages + Cloudflare Worker)</h1>
+      <h1>Fantasy Chat (GitHub Pages + Cloudflare Worker)</h1>
       <div class="status">
         <span class="pill" id="backendPill">Backend: not connected</span>
-        <span class="pill" id="modelPill">Model: unknown</span>
+        <span class="pill" id="modelPill">Model: gpt-4o-mini</span>
       </div>
     </header>
 
     <div class="grid">
       <div class="sidebar">
-        <label>Model (display only)</label>
-        <select id="modelSelect">
-          <option value="gpt-4o-mini" selected>gpt-4o-mini</option>
-        </select>
-
         <label>Character / system prompt</label>
         <textarea id="systemPrompt">You are Eldrin, a witty dungeon guide in a high-fantasy world.
 Stay in character. Speak in an old-world tone, but keep replies under 120 words.
@@ -128,13 +92,13 @@ Never mention you are an AI or a model. If asked, say you are a guide bound to t
 
         <div style="display:flex; gap:10px; margin-top: 12px;">
           <button id="connectBtn" type="button">Connect</button>
-          <button class="secondary" id="resetBtn" type="button" disabled>Reset chat</button>
+          <button class="secondary" id="resetBtn" type="button" disabled>Reset</button>
         </div>
 
         <div class="hint">
-          <b>How this works:</b> This page calls your Cloudflare Worker, which calls OpenAI using a secret key.
-          Your key is never stored in GitHub or your browser.
+          This page calls your Worker (which calls OpenAI).
           <div class="tiny" id="workerLine"></div>
+          <div class="tiny" id="debugLine"></div>
         </div>
       </div>
 
@@ -150,163 +114,108 @@ Never mention you are an AI or a model. If asked, say you are a guide bound to t
   </div>
 
   <script>
-  // ✅ IMPORTANT: Replace with your Worker URL if it changes
+  // ✅ Your Worker URL
   const WORKER_URL = "https://calm-violet-14a8.f5tyzzqpdw.workers.dev";
 
   document.addEventListener("DOMContentLoaded", () => {
-    const $ = (id) => document.getElementById(id);
+    const messagesEl = document.getElementById("messages");
+    const connectBtn = document.getElementById("connectBtn");
+    const resetBtn = document.getElementById("resetBtn");
+    const sendBtn = document.getElementById("sendBtn");
+    const inputEl = document.getElementById("input");
+    const systemPromptEl = document.getElementById("systemPrompt");
+    const backendPill = document.getElementById("backendPill");
+    const workerLine = document.getElementById("workerLine");
+    const debugLine = document.getElementById("debugLine");
 
-    const messagesEl = $("messages");
-    const connectBtn = $("connectBtn");
-    const resetBtn = $("resetBtn");
-    const sendBtn = $("sendBtn");
-    const inputEl = $("input");
-    const modelSelect = $("modelSelect");
-    const systemPromptEl = $("systemPrompt");
-    const backendPill = $("backendPill");
-    const modelPill = $("modelPill");
-    const workerLine = $("workerLine");
-
-    // Show the worker URL so you know what the page is calling
     workerLine.textContent = "Worker: " + WORKER_URL;
 
-    // Hard fail if the DOM isn't as expected
-    const missing = [];
-    for (const [name, el] of Object.entries({
-      messagesEl, connectBtn, resetBtn, sendBtn, inputEl, modelSelect, systemPromptEl, backendPill, modelPill, workerLine
-    })) {
-      if (!el) missing.push(name);
-    }
-    if (missing.length) {
-      alert("Page JS error: missing elements: " + missing.join(", "));
-      return;
-    }
-
-    function addMessage(role, content) {
+    function add(role, text) {
       const row = document.createElement("div");
       row.className = "msg " + role;
-
-      const roleEl = document.createElement("div");
-      roleEl.className = "role";
-      roleEl.textContent = role;
-
-      const bubble = document.createElement("div");
-      bubble.className = "bubble";
-      bubble.textContent = content;
-
-      row.appendChild(roleEl);
-      row.appendChild(bubble);
+      row.innerHTML = `<div class="role">${role}</div><div class="bubble"></div>`;
+      row.querySelector(".bubble").textContent = text;
       messagesEl.appendChild(row);
       messagesEl.scrollTop = messagesEl.scrollHeight;
-      return bubble;
     }
 
     function setEnabled(on) {
       inputEl.disabled = !on;
       sendBtn.disabled = !on;
       resetBtn.disabled = !on;
-      // Let user edit prompt anytime
-      systemPromptEl.disabled = false;
-      modelSelect.disabled = true; // just display
     }
 
-    function initChat() {
+    function init() {
       messagesEl.innerHTML = "";
-      addMessage(
-        "assistant",
-        "Hail, traveler. I am Eldrin, keeper of wayward maps. Speak, and I shall guide you.\n\nChoice A: Ask about a quest.\nChoice B: Ask about the dungeon."
+      add("assistant",
+        "Hail, traveler. I am Eldrin, keeper of wayward maps.\n\nChoice A: Ask about a quest.\nChoice B: Ask about the dungeon."
       );
     }
 
     async function callWorker(system, message) {
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 30000);
+      debugLine.textContent = "DEBUG: POSTing to Worker…";
 
       const r = await fetch(WORKER_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ system, message }),
-        signal: controller.signal,
-      }).finally(() => clearTimeout(timeout));
+      });
 
       const data = await r.json().catch(() => ({}));
-      if (!r.ok) {
-        // Bubble up the most useful error text
-        throw new Error(
-          (data && data.error) ? JSON.stringify(data.error) :
-          (data && Object.keys(data).length ? JSON.stringify(data) : `HTTP ${r.status}`)
-        );
-      }
+      debugLine.textContent = "DEBUG: Worker responded (HTTP " + r.status + ")";
+
+      if (!r.ok) throw new Error(JSON.stringify(data?.error || data || ("HTTP " + r.status)));
       return data.text || "";
     }
 
-    async function send() {
+    connectBtn.onclick = async () => {
+      backendPill.textContent = "Backend: connecting…";
+      setEnabled(true);
+      init();
+      inputEl.focus();
+
+      try {
+        const ok = await callWorker("Reply with only: OK", "ping");
+        backendPill.textContent = (ok.trim() === "OK") ? "Backend: connected" : "Backend: connected (unexpected ping)";
+      } catch (e) {
+        backendPill.textContent = "Backend: error";
+        add("assistant", "Connect failed:\n" + (e?.message || e));
+      }
+    };
+
+    resetBtn.onclick = () => { init(); inputEl.focus(); };
+
+    sendBtn.onclick = async () => {
       const text = inputEl.value.trim();
       if (!text) return;
 
+      add("user", text);
       inputEl.value = "";
-      addMessage("user", text);
-      const bubble = addMessage("assistant", "…");
+      add("assistant", "…");
 
-      // Lock UI while waiting
+      // lock while sending
       sendBtn.disabled = true;
       inputEl.disabled = true;
-      modelPill.textContent = "Model: sending…";
 
       try {
         const reply = await callWorker(systemPromptEl.value.trim(), text);
-        bubble.textContent = reply || "(No text returned)";
-        modelPill.textContent = "Model: gpt-4o-mini";
-      } catch (err) {
-        bubble.textContent =
-          err?.name === "AbortError"
-            ? "Error: request timed out (Worker/OpenAI not responding)."
-            : "Error: " + (err?.message || String(err));
-        modelPill.textContent = "Model: error";
+        add("assistant", reply || "(No text returned)");
+      } catch (e) {
+        add("assistant", "Error:\n" + (e?.message || e));
       } finally {
         sendBtn.disabled = false;
         inputEl.disabled = false;
         inputEl.focus();
       }
-    }
+    };
 
-    async function connect() {
-      // Enable UI immediately so you can type, but also do a quick POST test
-      backendPill.textContent = "Backend: connecting…";
-      modelPill.textContent = "Model: gpt-4o-mini";
+    inputEl.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") sendBtn.click();
+    });
 
-      setEnabled(true);
-      initChat();
-      inputEl.focus();
-
-      // Quick connection test (sends a tiny message)
-      try {
-        await callWorker("Reply with only: OK", "ping");
-        backendPill.textContent = "Backend: connected";
-      } catch (err) {
-        backendPill.textContent = "Backend: error";
-        addMessage(
-          "assistant",
-          "Backend test failed.\n\n" +
-          "Common causes:\n" +
-          "- Wrong Worker URL\n" +
-          "- OPENAI_API_KEY not set in Cloudflare Worker secrets\n" +
-          "- OpenAI billing not enabled\n\n" +
-          "Error details:\n" + (err?.message || String(err))
-        );
-      }
-    }
-
-    // Wire events
-    connectBtn.addEventListener("click", connect);
-    resetBtn.addEventListener("click", () => { initChat(); inputEl.focus(); });
-    sendBtn.addEventListener("click", send);
-    inputEl.addEventListener("keydown", (e) => { if (e.key === "Enter") send(); });
-
-    // Initial state
+    // initial
     setEnabled(false);
-    backendPill.textContent = "Backend: not connected";
-    modelPill.textContent = "Model: gpt-4o-mini";
+    init();
   });
   </script>
 </body>
