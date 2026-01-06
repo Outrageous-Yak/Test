@@ -248,7 +248,14 @@ Never mention you are an AI or a model. If asked, say you are a guide bound to t
     inputEl.focus();
   });
 
-  sendBtn.addEventListener("click", () => send());
+  sendBtn.addEventListener("click", () => {
+  try {
+    send();
+  } catch (e) {
+    alert("Send failed: " + (e?.message || e));
+  }
+});
+
 
   inputEl.addEventListener("keydown", (e) => {
     if (e.key === "Enter") send();
@@ -256,4 +263,5 @@ Never mention you are an AI or a model. If asked, say you are a guide bound to t
 </script>
 </body>
 </html>
+
 
