@@ -148,132 +148,112 @@ Never mention you are an AI or a model. If asked, say you are a guide bound to t
   </div>
 
   <!-- WebLLM (runs models in-browser with WebGPU) -->
-  <script type="module">
-    import * as webllm from "https://cdn.jsdelivr.net/npm/@mlc-ai/web-llm/+esm";
+  <script>
+  const WORKER_URL = "https://calm-violet-14a8.f5tyzzqpdw.workers.dev";
 
-    const el = (id) => document.getElementById(id);
-    const messagesEl = el("messages");
-    const loadBtn = el("loadBtn");
-    const resetBtn = el("resetBtn");
-    const sendBtn = el("sendBtn");
-    const inputEl = el("input");
-    const modelSelect = el("modelSelect");
-    const systemPromptEl = el("systemPrompt");
-    const webgpuPill = el("webgpuPill");
-    const modelPill = el("modelPill");
+  const el = (id) => document.getElementById(id);
+  const messagesEl = el("messages");
+  const loadBtn = el("loadBtn");
+  const resetBtn = el("resetBtn");
+  const sendBtn = el("sendBtn");
+  const inputEl = el("input");
+  const modelSelect = el("modelSelect");
+  const systemPromptEl = el("systemPrompt");
+  const webgpuPill = el("webgpuPill");
+  const modelPill = el("modelPill");
 
-    let engine = null;
-    let chat = []; // {role:"system"|"user"|"assistant", content:"..."}
+  let chat = []; // store messages locally (optional)
 
-    function addMessage(role, content) {
-      const row = document.createElement("div");
-      row.className = "msg " + role;
+  function addMessage(role, content) {
+    const row = document.createElement("div");
+    row.className = "msg " + role;
 
-      const roleEl = document.createElement("div");
-      roleEl.className = "role";
-      roleEl.textContent = role;
+    const roleEl = document.createElement("div");
+    roleEl.className = "role";
+    roleEl.textContent = role;
 
-      const bubble = document.createElement("div");
-      bubble.className = "bubble";
-      bubble.textContent = content;
+    const bubble = document.createElement("div");
+    bubble.className = "bubble";
+    bubble.textContent = content;
 
-      row.appendChild(roleEl);
-      row.appendChild(bubble);
-      messagesEl.appendChild(row);
-      messagesEl.scrollTop = messagesEl.scrollHeight;
-      return bubble; // return bubble to stream into it
-    }
+    row.appendChild(roleEl);
+    row.appendChild(bubble);
+    messagesEl.appendChild(row);
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+    return bubble;
+  }
 
-    function setUI({ loaded }) {
-      inputEl.disabled = !loaded;
-      sendBtn.disabled = !loaded;
-      resetBtn.disabled = !loaded;
-      loadBtn.disabled = loaded;
-      modelSelect.disabled = loaded;
-      systemPromptEl.disabled = loaded;
-    }
+  function setUI({ loaded }) {
+    inputEl.disabled = !loaded;
+    sendBtn.disabled = !loaded;
+    resetBtn.disabled = !loaded;
+    loadBtn.disabled = loaded;
+    modelSelect.disabled = loaded;
+    systemPromptEl.disabled = loaded;
+  }
 
-    function checkWebGPU() {
-      const ok = !!navigator.gpu;
-      webgpuPill.textContent = ok ? "WebGPU: available" : "WebGPU: not available";
-      webgpuPill.style.opacity = ok ? "1" : "0.7";
-      return ok;
-    }
+  function initChat() {
+    messagesEl.innerHTML = "";
+    chat = [{ role: "system", content: systemPromptEl.value.trim() }];
+    addMessage(
+      "assistant",
+      "Hail, traveler. I am Eldrin, keeper of wayward maps. Speak, and I shall guide you.\n\nChoice A: Ask about a quest.\nChoice B: Ask about the dungeon."
+    );
+  }
 
-    checkWebGPU();
-
-    function initChat() {
-      messagesEl.innerHTML = "";
-      chat = [{ role: "system", content: systemPromptEl.value.trim() }];
-      addMessage("assistant", "Hail, traveler. I am Eldrin, keeper of wayward maps. Speak, and I shall guide you.\n\nChoice A: Ask about a quest.\nChoice B: Ask about the dungeon.");
-    }
-
-    async function loadModel() {
-      if (!checkWebGPU()) {
-        addMessage("assistant", "Your realm lacks the magic called WebGPU. Try Chrome/Edge on desktop, or enable WebGPU flags.");
-        return;
-      }
-
-      const model = modelSelect.value;
-      modelPill.textContent = "Model: loading…";
-      addMessage("assistant", `Summoning ${model}… (first time may take a while)`);
-
-      // Create engine & load model
-      engine = await webllm.CreateMLCEngine(model, {
-        initProgressCallback: (report) => {
-          // report.text is typically a human-readable progress message
-          modelPill.textContent = "Model: " + (report?.text ?? "loading…");
-        }
-      });
-
-      modelPill.textContent = "Model: " + model;
-      setUI({ loaded: true });
-      initChat();
-      inputEl.focus();
-    }
-
-    async function send() {
-      const text = inputEl.value.trim();
-      if (!text || !engine) return;
-      inputEl.value = "";
-
-      addMessage("user", text);
-
-      // Prepare assistant bubble we will stream into
-      const bubble = addMessage("assistant", "");
-
-      chat.push({ role: "user", content: text });
-
-      // Stream tokens into the bubble
-      let out = "";
-      const chunks = await engine.chat.completions.create({
-        messages: chat,
-        temperature: 0.9,
-        stream: true
-      });
-
-      for await (const chunk of chunks) {
-        const delta = chunk?.choices?.[0]?.delta?.content ?? "";
-        out += delta;
-        bubble.textContent = out;
-        messagesEl.scrollTop = messagesEl.scrollHeight;
-      }
-
-      chat.push({ role: "assistant", content: out });
-    }
-
-    loadBtn.addEventListener("click", () => loadModel());
-
-    resetBtn.addEventListener("click", () => {
-      initChat();
-      inputEl.focus();
+  async function callWorker(system, message) {
+    const r = await fetch(WORKER_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ system, message }),
     });
 
-    sendBtn.addEventListener("click", () => send());
+    const data = await r.json().catch(() => ({}));
+    if (!r.ok) {
+      throw new Error(data?.error ? JSON.stringify(data.error) : "Request failed");
+    }
+    return data.text || "";
+  }
 
-    inputEl.addEventListener("keydown", (e) => {
-      if (e.key === "Enter") send();
-    });
-  </script>
+  async function send() {
+    const text = inputEl.value.trim();
+    if (!text) return;
+    inputEl.value = "";
+
+    addMessage("user", text);
+    const bubble = addMessage("assistant", "…");
+
+    try {
+      const system = systemPromptEl.value.trim();
+      const reply = await callWorker(system, text);
+      bubble.textContent = reply || "(No text returned)";
+    } catch (err) {
+      bubble.textContent = "Error: " + (err?.message || String(err));
+    }
+
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+  }
+
+  // "Load model" now just means "enable chat"
+  loadBtn.addEventListener("click", () => {
+    webgpuPill.textContent = "Backend: Cloudflare Worker";
+    modelPill.textContent = "Model: gpt-4o-mini";
+    setUI({ loaded: true });
+    initChat();
+    inputEl.focus();
+  });
+
+  resetBtn.addEventListener("click", () => {
+    initChat();
+    inputEl.focus();
+  });
+
+  sendBtn.addEventListener("click", () => send());
+
+  inputEl.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") send();
+  });
+</script>
 </body>
 </html>
+
