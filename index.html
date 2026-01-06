@@ -148,10 +148,12 @@ Never mention you are an AI or a model. If asked, say you are a guide bound to t
   </div>
 
   <!-- WebLLM (runs models in-browser with WebGPU) -->
-  <script>
+ <script>
+document.addEventListener("DOMContentLoaded", () => {
   const WORKER_URL = "https://calm-violet-14a8.f5tyzzqpdw.workers.dev";
 
   const el = (id) => document.getElementById(id);
+
   const messagesEl = el("messages");
   const loadBtn = el("loadBtn");
   const resetBtn = el("resetBtn");
@@ -162,7 +164,22 @@ Never mention you are an AI or a model. If asked, say you are a guide bound to t
   const webgpuPill = el("webgpuPill");
   const modelPill = el("modelPill");
 
-  let chat = []; // store messages locally (optional)
+  // If any of these are null, the script can't work — show a clear error
+  const missing = [];
+  if (!messagesEl) missing.push("messages");
+  if (!loadBtn) missing.push("loadBtn");
+  if (!resetBtn) missing.push("resetBtn");
+  if (!sendBtn) missing.push("sendBtn");
+  if (!inputEl) missing.push("input");
+  if (!modelSelect) missing.push("modelSelect");
+  if (!systemPromptEl) missing.push("systemPrompt");
+  if (!webgpuPill) missing.push("webgpuPill");
+  if (!modelPill) missing.push("modelPill");
+
+  if (missing.length) {
+    alert("JS error: missing elements: " + missing.join(", "));
+    return;
+  }
 
   function addMessage(role, content) {
     const row = document.createElement("div");
@@ -183,18 +200,19 @@ Never mention you are an AI or a model. If asked, say you are a guide bound to t
     return bubble;
   }
 
-  function setUI({ loaded }) {
+  function setUI(loaded) {
     inputEl.disabled = !loaded;
     sendBtn.disabled = !loaded;
     resetBtn.disabled = !loaded;
-    loadBtn.disabled = loaded;
-    modelSelect.disabled = loaded;
-    systemPromptEl.disabled = loaded;
+
+    // Keep these enabled so you can change prompt/model if you want
+    loadBtn.disabled = false;
+    modelSelect.disabled = false;
+    systemPromptEl.disabled = false;
   }
 
   function initChat() {
     messagesEl.innerHTML = "";
-    chat = [{ role: "system", content: systemPromptEl.value.trim() }];
     addMessage(
       "assistant",
       "Hail, traveler. I am Eldrin, keeper of wayward maps. Speak, and I shall guide you.\n\nChoice A: Ask about a quest.\nChoice B: Ask about the dungeon."
@@ -202,43 +220,59 @@ Never mention you are an AI or a model. If asked, say you are a guide bound to t
   }
 
   async function callWorker(system, message) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 30000);
+
     const r = await fetch(WORKER_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ system, message }),
-    });
+      signal: controller.signal,
+    }).finally(() => clearTimeout(timeout));
 
     const data = await r.json().catch(() => ({}));
+
     if (!r.ok) {
-      throw new Error(data?.error ? JSON.stringify(data.error) : "Request failed");
+      // Show the OpenAI/Worker error clearly in the chat
+      throw new Error(
+        data?.error ? JSON.stringify(data.error) : `HTTP ${r.status}`
+      );
     }
+
     return data.text || "";
   }
 
   async function send() {
     const text = inputEl.value.trim();
     if (!text) return;
-    inputEl.value = "";
 
+    inputEl.value = "";
     addMessage("user", text);
     const bubble = addMessage("assistant", "…");
 
+    // prevent double-click spam
+    sendBtn.disabled = true;
+    inputEl.disabled = true;
+
     try {
-      const system = systemPromptEl.value.trim();
-      const reply = await callWorker(system, text);
+      const reply = await callWorker(systemPromptEl.value.trim(), text);
       bubble.textContent = reply || "(No text returned)";
     } catch (err) {
-      bubble.textContent = "Error: " + (err?.message || String(err));
+      bubble.textContent =
+        err?.name === "AbortError"
+          ? "Error: request timed out."
+          : "Error: " + (err?.message || String(err));
+    } finally {
+      sendBtn.disabled = false;
+      inputEl.disabled = false;
+      inputEl.focus();
     }
-
-    messagesEl.scrollTop = messagesEl.scrollHeight;
   }
 
-  // "Load model" now just means "enable chat"
   loadBtn.addEventListener("click", () => {
     webgpuPill.textContent = "Backend: Cloudflare Worker";
     modelPill.textContent = "Model: gpt-4o-mini";
-    setUI({ loaded: true });
+    setUI(true);
     initChat();
     inputEl.focus();
   });
@@ -248,20 +282,19 @@ Never mention you are an AI or a model. If asked, say you are a guide bound to t
     inputEl.focus();
   });
 
-  sendBtn.addEventListener("click", () => {
-  try {
-    send();
-  } catch (e) {
-    alert("Send failed: " + (e?.message || e));
-  }
-});
-
+  sendBtn.addEventListener("click", send);
 
   inputEl.addEventListener("keydown", (e) => {
     if (e.key === "Enter") send();
   });
+
+  // initial state
+  setUI(false);
+});
 </script>
+
 </body>
 </html>
+
 
 
