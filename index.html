@@ -27,7 +27,7 @@
       --radius: 18px;
 
       /* Fixed set sizes (desktop/tablet) */
-      --panelH: 760px; /* increased to fit tools + vision */
+      --panelH: 780px;
       --panelW: 1120px;
       --sideW: 360px;
       --chatW: calc(var(--panelW) - var(--sideW));
@@ -84,6 +84,7 @@
       align-items:center;
       justify-content:space-between;
       gap:12px;
+      flex-wrap:wrap;
     }
 
     .brand{
@@ -271,7 +272,7 @@
       opacity: .98;
     }
 
-    /* Fantasy overlay gloss + “shield” arc */
+    /* Fantasy overlay gloss */
     .portrait .imgWrap::before{
       content:"";
       position:absolute; inset:0;
@@ -338,7 +339,6 @@
       background: rgba(10,16,34,.30);
     }
 
-    /* Split the right panel into: chat + toolkit + composer */
     .chatStack{
       flex: 1;
       min-height: 0;
@@ -391,9 +391,9 @@
 
     /* Toolkit area */
     .toolkit{
-      height: 360px;        /* includes vision */
-      min-height: 300px;
-      max-height: 420px;
+      height: 380px;
+      min-height: 320px;
+      max-height: 520px;
       overflow:auto;
       padding: 12px;
       background: rgba(10,16,34,.30);
@@ -405,6 +405,7 @@
       justify-content:space-between;
       gap:10px;
       margin-bottom:10px;
+      flex-wrap:wrap;
     }
     .toolTitle{
       font-weight: 800;
@@ -426,7 +427,7 @@
     }
     @media (max-width: 980px){
       .toolGrid{ grid-template-columns: 1fr; }
-      .toolkit{ height: 420px; }
+      .toolkit{ height: 520px; }
     }
 
     .gmCard{
@@ -515,7 +516,7 @@
     }
     .gmChip strong{ color: var(--ink); font-weight: 800; }
 
-    /* Vision Forge embed styling */
+    /* Vision panel */
     .visionFrame{
       border-radius: 16px;
       border: 1px solid rgba(191,232,255,.16);
@@ -531,16 +532,14 @@
       padding: 10px 10px;
       border-bottom: 1px solid rgba(191,232,255,.12);
       background: linear-gradient(180deg, rgba(10,16,34,.55), rgba(10,16,34,.28));
+      flex-wrap:wrap;
     }
-    .visionFrame iframe{
-      width: 100%;
-      height: 420px;
-      border: 0;
+    .visionImg{
+      width:100%;
       display:block;
-      background: rgba(0,0,0,.2);
-    }
-    @media (max-width: 980px){
-      .visionFrame iframe{ height: 520px; }
+      aspect-ratio: 1 / 1;
+      object-fit: cover;
+      background: rgba(0,0,0,.18);
     }
 
     .composer{
@@ -594,13 +593,13 @@
 
     /* Responsive: keep “set size” feel, but stack on small screens */
     @media (max-width: 820px){
-      :root{ --panelH: 1120px; }
+      :root{ --panelH: 1200px; }
       .grid{
         grid-template-columns: 1fr;
         grid-template-rows: 300px 1fr;
       }
       .portrait{ height: 300px; }
-      .toolkit{ height: 520px; }
+      .toolkit{ height: 600px; }
     }
   </style>
 </head>
@@ -615,7 +614,7 @@
           <div class="subtitle">Walker • Threshold-Holder • Reluctant Axis</div>
         </div>
       </div>
-      <div class="hint">Enter = send • Shift+Enter = new line • Try: <span class="gmMono">/help</span></div>
+      <div class="hint">Enter = send • Shift+Enter = new line • Try: <span class="gmMono">/help</span> • <span class="gmMono">/vision</span></div>
     </div>
 
     <div class="stage" role="application" aria-label="Aerin chat stage">
@@ -647,7 +646,9 @@
             <div class="toolkit" aria-label="Toolkit and vision forge">
               <div class="toolTitleRow">
                 <div class="toolTitle">Toolkit (always visible)</div>
-                <div class="toolHint">Chat shortcuts: <span class="gmMono">/roll</span> <span class="gmMono">/cond</span> <span class="gmMono">/loot</span> <span class="gmMono">/encounter</span></div>
+                <div class="toolHint">
+                  Chat shortcuts: <span class="gmMono">/roll</span> <span class="gmMono">/cond</span> <span class="gmMono">/loot</span> <span class="gmMono">/encounter</span> <span class="gmMono">/vision</span>
+                </div>
               </div>
 
               <div class="toolGrid">
@@ -722,35 +723,37 @@
                   <div class="gmList" id="lootList"></div>
                 </div>
 
-                <!-- Vision Forge (Perchance embed) -->
+                <!-- Vision Forge (FREE, native, no iframe) -->
                 <div class="gmCard" aria-label="Vision image generator">
-                  <h3>Vision Forge (Perchance)</h3>
+                  <h3>Vision Forge (Free)</h3>
 
                   <div class="gmRow">
-                    <input id="visionPrompt" class="gmInput" placeholder="Describe the omen… (e.g. ‘frost-blue elf with a hovering shield, candlelit tavern’)">
-                    <button type="button" id="visionCopy" class="gmBtn">Copy</button>
-                    <button type="button" id="visionOpen" class="gmBtn">Open</button>
+                    <input id="pPrompt" class="gmInput" placeholder="Describe the omen… or use /vision in chat">
+                    <button type="button" id="pGen" class="gmBtn">Generate</button>
+                    <button type="button" id="pReroll" class="gmBtn">Re-roll</button>
                   </div>
 
-                  <div class="gmSmall" style="margin-top:8px;">
-                    Embedded below. Many generators won’t accept prompt injection from an iframe (browser security),
-                    so Copy/Open helps.
+                  <div class="gmRow" style="margin-top:10px;">
+                    <select id="pModel" class="gmSelect gmInput" style="min-width:200px; flex:0 1 auto;">
+                      <option value="flux" selected>flux</option>
+                      <option value="sdxl">sdxl</option>
+                    </select>
+                    <input id="pW" class="gmInput gmMono" value="768" style="max-width:110px; flex:0 1 auto;" />
+                    <input id="pH" class="gmInput gmMono" value="768" style="max-width:110px; flex:0 1 auto;" />
+                    <input id="pSeed" class="gmInput gmMono" value="random" style="max-width:140px; flex:0 1 auto;" />
                   </div>
 
                   <div class="visionFrame" style="margin-top:10px;">
                     <div class="visionTop">
-                      <div class="gmChip"><strong>Source</strong> Perchance</div>
-                      <div class="gmChip"><strong>Status</strong> <span id="visionStatus">Loaded</span></div>
+                      <div class="gmChip"><strong>Source</strong> Pollinations</div>
+                      <div class="gmChip"><strong>Status</strong> <span id="pStatus">Idle</span></div>
+                      <div class="gmChip"><strong>Tip</strong> <span class="gmMono">/vision candlelit cairn door</span></div>
                     </div>
+                    <img id="pImg" class="visionImg" alt="Generated vision" />
+                  </div>
 
-                    <iframe
-                      id="visionIframe"
-                      title="Perchance AI Image Generator"
-                      loading="lazy"
-                      referrerpolicy="no-referrer"
-                      src="https://perchance.org/ai-image-generator"
-                      allow="clipboard-read; clipboard-write"
-                    ></iframe>
+                  <div class="gmSmall" style="margin-top:8px;">
+                    This is free and runs via a public image endpoint. Use a fixed seed for repeatable results.
                   </div>
                 </div>
 
@@ -811,7 +814,7 @@
                   </div>
                   <div class="gmList" id="postList"></div>
                   <div class="gmSmall" style="margin-top:10px;">
-                    Chat shortcuts: <span class="gmMono">/help</span>, <span class="gmMono">/roll</span>, <span class="gmMono">/cond</span>, <span class="gmMono">/loot</span>, <span class="gmMono">/encounter</span>
+                    Chat shortcuts: <span class="gmMono">/help</span>, <span class="gmMono">/roll</span>, <span class="gmMono">/cond</span>, <span class="gmMono">/loot</span>, <span class="gmMono">/encounter</span>, <span class="gmMono">/vision</span>
                   </div>
                 </div>
               </div>
@@ -821,7 +824,7 @@
           <div id="error" class="error"></div>
 
           <form id="composer" class="composer">
-            <textarea id="input" placeholder="Speak. (Try /help)" autocomplete="off"></textarea>
+            <textarea id="input" placeholder="Speak. (Try /help or /vision ...)" autocomplete="off"></textarea>
             <button id="send" type="submit">Send</button>
           </form>
         </section>
@@ -960,7 +963,7 @@ In all responses, stay in character as Aerin.
     }
 
     /* ---------------------------
-       GM Tools State + Utilities
+       Utilities + Local Storage
     ----------------------------*/
     const $ = (sel) => document.querySelector(sel);
 
@@ -1112,7 +1115,83 @@ In all responses, stay in character as Aerin.
     }
 
     /* ---------------------------
-       Render UI
+       Vision Forge (FREE) wiring
+    ----------------------------*/
+    const AERIN_VISION_STYLE = `
+pf2e fantasy illustration, cinematic, moody candlelight, cold blue aura, runic mist,
+ancient stone, hovering shield motif, subtle prism glow, detailed, high quality
+`.trim();
+
+    function setVisionStatus(t){
+      const el = document.getElementById("pStatus");
+      if(el) el.textContent = t;
+    }
+
+    function encodePromptForPath(s){
+      return encodeURIComponent((s || "").trim()).replace(/%20/g, "+");
+    }
+
+    function buildVisionUrl(prompt, opts){
+      const model = encodeURIComponent(opts.model || "flux");
+      const w = opts.w || 768;
+      const h = opts.h || 768;
+      const seed = encodeURIComponent(opts.seed || "random");
+      const p = encodePromptForPath(prompt);
+      return `https://image.pollinations.ai/prompt/${p}?model=${model}&width=${w}&height=${h}&seed=${seed}&nologo=true`;
+    }
+
+    function generateVision(rawPrompt, {reroll=false, talk=true} = {}){
+      const pEl = document.getElementById("pPrompt");
+      const modelEl = document.getElementById("pModel");
+      const wEl = document.getElementById("pW");
+      const hEl = document.getElementById("pH");
+      const seedEl = document.getElementById("pSeed");
+      const imgEl = document.getElementById("pImg");
+      if(!imgEl || !pEl || !modelEl || !wEl || !hEl || !seedEl) return;
+
+      const base = String(rawPrompt || pEl.value || "").trim();
+      if(!base){
+        setVisionStatus("Write a prompt");
+        return;
+      }
+
+      // Keep the prompt compact for better image results
+      const clipped = base.length > 260 ? base.slice(0,260) + "…" : base;
+      const themed = `${clipped}. ${AERIN_VISION_STYLE}`;
+
+      // reflect in UI
+      pEl.value = clipped;
+
+      if(reroll || seedEl.value.trim().toLowerCase() === "random" || !seedEl.value.trim()){
+        seedEl.value = String(Math.floor(Math.random() * 1e9));
+      }
+
+      const url = buildVisionUrl(themed, {
+        model: modelEl.value,
+        w: parseInt(wEl.value,10) || 768,
+        h: parseInt(hEl.value,10) || 768,
+        seed: seedEl.value
+      });
+
+      setVisionStatus("Generating…");
+      imgEl.onload = () => setVisionStatus("Ready");
+      imgEl.onerror = () => setVisionStatus("Failed (try again)");
+      imgEl.src = url;
+
+      if(talk && typeof aerinSay === "function"){
+        aerinSay("I let it settle.\nA picture forms.\nLook.");
+      }
+    }
+
+    function initVisionUI(){
+      const genBtn = document.getElementById("pGen");
+      const rerollBtn = document.getElementById("pReroll");
+      if(genBtn) genBtn.addEventListener("click", () => generateVision("", {reroll:false, talk:true}));
+      if(rerollBtn) rerollBtn.addEventListener("click", () => generateVision("", {reroll:true, talk:true}));
+    }
+
+    /* ---------------------------
+       Render toolkit UI
     ----------------------------*/
     function renderRollLog(){
       const el = $("#rollLog");
@@ -1380,15 +1459,6 @@ In all responses, stay in character as Aerin.
       const t = lootTables[tier] || lootTables.standard;
       const items = [];
 
-      function rollFromTable(arr){ return arr[Math.floor(Math.random()*arr.length)]; }
-      function rollInlineDice(text){
-        return text.replace(/(\d+)d(\d+)/g, (_,a,b)=>{
-          const n = parseInt(a,10), s = parseInt(b,10);
-          let sum = 0; for(let i=0;i<n;i++) sum += rollDie(s);
-          return String(sum);
-        });
-      }
-
       if(tier === "street"){
         items.push(`Coins: ${rollInlineDice(rollFromTable(t.coins))}`);
         items.push(`Trinket: ${rollFromTable(t.trinket)}`);
@@ -1425,15 +1495,16 @@ In all responses, stay in character as Aerin.
     }
 
     /* ---------------------------
-       Slash command runner in chat
+       Slash command runner (adds /vision)
     ----------------------------*/
     function runGMCommand(cmd){
-      const parts = String(cmd || "").trim().split(" ");
+      const raw = String(cmd || "").trim();
+      const parts = raw.split(" ");
       const head = (parts[0] || "").toLowerCase();
       const rest = parts.slice(1);
 
       if(head === "help"){
-        aerinSay("Tools are here.\nUse /roll, /cond, /loot, /encounter.\nThey do not need the gate.");
+        aerinSay("Tools are here.\nUse /roll, /cond, /loot, /encounter.\nIf you want a picture: /vision.");
         return;
       }
 
@@ -1482,6 +1553,13 @@ In all responses, stay in character as Aerin.
         throw new Error("Use: /encounter add|next|prev|reset");
       }
 
+      if(head === "vision" || head === "omen"){
+        const prompt = rest.join(" ").trim();
+        if(!prompt) throw new Error("Use: /vision candlelit cairn door, blue light, runes");
+        generateVision(prompt, {reroll:true, talk:true});
+        return;
+      }
+
       throw new Error("Unknown command. Try /help");
     }
 
@@ -1500,48 +1578,6 @@ In all responses, stay in character as Aerin.
       }
       setStatus("Ready");
       return true;
-    }
-
-    /* ---------------------------
-       Vision Forge (Perchance)
-    ----------------------------*/
-    function initVisionForge(){
-      const promptEl = document.getElementById("visionPrompt");
-      const copyBtn = document.getElementById("visionCopy");
-      const openBtn = document.getElementById("visionOpen");
-      const iframe = document.getElementById("visionIframe");
-      const statusEl = document.getElementById("visionStatus");
-
-      if(!promptEl || !copyBtn || !openBtn || !iframe) return;
-
-      function setVisionStatus(t){
-        if(statusEl) statusEl.textContent = t;
-      }
-
-      iframe.addEventListener("load", ()=> setVisionStatus("Ready"));
-
-      copyBtn.addEventListener("click", async ()=>{
-        const text = (promptEl.value || "").trim();
-        if(!text) return;
-
-        try{
-          await navigator.clipboard.writeText(text);
-          setVisionStatus("Prompt copied");
-          aerinSay("I hold the description.\nLet the image take shape.");
-        }catch{
-          prompt("Copy this prompt:", text);
-          setVisionStatus("Copy manually");
-        }
-      });
-
-      openBtn.addEventListener("click", ()=>{
-        const text = (promptEl.value || "").trim();
-        const base = "https://perchance.org/ai-image-generator";
-        const url = text ? `${base}?prompt=${encodeURIComponent(text)}` : base;
-        window.open(url, "_blank", "noopener,noreferrer");
-        setVisionStatus("Opened tab");
-        if(text) aerinSay("Go.\nShow it the words.");
-      });
     }
 
     /* ---------------------------
@@ -1593,6 +1629,8 @@ In all responses, stay in character as Aerin.
       renderEncounter();
       renderLoot();
       renderPosts();
+
+      initVisionUI();
 
       // Dice
       $("#rollBtn").addEventListener("click", ()=>{
@@ -1726,7 +1764,6 @@ In all responses, stay in character as Aerin.
     // Boot
     render();
     initToolkit();
-    initVisionForge();
   </script>
 </body>
 </html>
