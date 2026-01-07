@@ -610,7 +610,7 @@
           <div class="subtitle">Walker • Threshold-Holder • Reluctant Axis</div>
         </div>
       </div>
-      <div class="hint">Enter = send • Shift+Enter = new line • Try: <span class="gmMono">/help</span> • <span class="gmMono">/vision</span></div>
+      <div class="hint">Enter = send • Shift+Enter = new line • Commands: <span class="gmMono">/help</span> <span class="gmMono">/roll</span> <span class="gmMono">/vision</span></div>
     </div>
 
     <div class="stage" role="application" aria-label="Aerin chat stage">
@@ -641,11 +641,12 @@
               <div class="toolTitleRow">
                 <div class="toolTitle">Toolkit (always visible)</div>
                 <div class="toolHint">
-                  Commands: <span class="gmMono">/roll</span> <span class="gmMono">/cond</span> <span class="gmMono">/loot</span> <span class="gmMono">/encounter</span> <span class="gmMono">/vision</span>
+                  Vision auto uses as much recent chat as fits. Manual: <span class="gmMono">/vision ...</span> or the panel below.
                 </div>
               </div>
 
               <div class="toolGrid">
+                <!-- Dice -->
                 <div class="gmCard">
                   <h3>Dice + Log</h3>
                   <div class="gmRow">
@@ -656,6 +657,7 @@
                   <div class="gmList" id="rollLog"></div>
                 </div>
 
+                <!-- Conditions -->
                 <div class="gmCard">
                   <h3>Conditions</h3>
                   <div class="gmRow">
@@ -678,6 +680,7 @@
                   <div id="condChips" style="margin-top:10px;"></div>
                 </div>
 
+                <!-- Encounter -->
                 <div class="gmCard">
                   <h3>Encounter</h3>
                   <div class="gmRow">
@@ -699,6 +702,7 @@
                   <div class="gmList" id="initList"></div>
                 </div>
 
+                <!-- Loot -->
                 <div class="gmCard">
                   <h3>Loot</h3>
                   <div class="gmRow">
@@ -713,6 +717,7 @@
                   <div class="gmList" id="lootList"></div>
                 </div>
 
+                <!-- Vision -->
                 <div class="gmCard" aria-label="Vision image generator">
                   <h3>Vision Forge (Free)</h3>
 
@@ -747,6 +752,7 @@
                   </div>
                 </div>
 
+                <!-- Character -->
                 <div class="gmCard">
                   <h3>Character Card</h3>
                   <div class="gmRow">
@@ -781,6 +787,7 @@
                   </div>
                 </div>
 
+                <!-- Tavern Board -->
                 <div class="gmCard">
                   <h3>Tavern Board</h3>
                   <div class="gmRow">
@@ -822,8 +829,8 @@
     const WORKER_URL = "https://calm-violet-14a8.f5tyzzqpdw.workers.dev/";
 
     // --- Auto-vision settings ---
-    const AUTO_VISION_EVERY = 3;       // every 3rd worker reply
-    const PROMPT_CHAR_LIMIT = 650;     // safe-ish for URL prompts
+    const AUTO_VISION_EVERY = 3;     // every 3rd WORKER reply
+    const PROMPT_CHAR_LIMIT = 650;   // safe-ish for URL prompts
     let aerinReplyCount = Number(localStorage.getItem("aerin_reply_count") || "0");
     let autoVisionEnabled = true;
 
@@ -882,6 +889,7 @@ Speech Patterns (IMPORTANT)
 In all responses, stay in character as Aerin.
 `.trim();
 
+    // Vision base + style (always used)
     const AERIN_BASE_VISION_TEXT = `
 Aerin's world omen-vision. Thresholds. Runic mist. Cold blue light. Stone and water.
 A hovering shield motif. Quiet tension. Not cartoonish. Not modern.
@@ -929,7 +937,7 @@ ancient stone, hovering shield motif, subtle prism glow, detailed, high quality
     }
 
     function aerinSay(text){
-      // Used by toolkit/commands locally
+      // local toolkit messages only (these are NOT counted for auto-vision)
       messages.push({ role: "assistant", content: text });
       render();
     }
@@ -959,12 +967,12 @@ ancient stone, hovering shield motif, subtle prism glow, detailed, high quality
       const aerinReply = String(data.text || "");
       messages.push({ role: "assistant", content: aerinReply });
 
-      // Auto-vision: every 3rd WORKER reply
+      // Auto-vision: every Nth WORKER reply (not toolkit)
       aerinReplyCount += 1;
       localStorage.setItem("aerin_reply_count", String(aerinReplyCount));
 
       if (autoVisionEnabled && (aerinReplyCount % AUTO_VISION_EVERY === 0)) {
-        const prompt = buildBestFitVisionPrompt();
+        const prompt = buildMaxHistoryVisionPrompt();
         generateVision(prompt, { reroll: true, talk: false });
       }
 
@@ -1147,14 +1155,13 @@ ancient stone, hovering shield motif, subtle prism glow, detailed, high quality
       const seed = encodeURIComponent(opts.seed || "random");
       const p = encodePromptForPath(prompt);
 
-      // No "nologo=true" — that can require an account.
-      // Add referrer for web friendliness.
+      // No nologo=true here. Add referrer for web friendliness.
       const ref = encodeURIComponent("aerin-threshold-chat");
 
       return `https://image.pollinations.ai/prompt/${p}?model=${model}&width=${w}&height=${h}&seed=${seed}&referrer=${ref}`;
     }
 
-    function generateVision(rawPrompt, {reroll=false, talk=true} = {}){
+    function generateVision(fullPrompt, {reroll=false, talk=true} = {}){
       const pEl = document.getElementById("pPrompt");
       const modelEl = document.getElementById("pModel");
       const wEl = document.getElementById("pW");
@@ -1163,24 +1170,13 @@ ancient stone, hovering shield motif, subtle prism glow, detailed, high quality
       const imgEl = document.getElementById("pImg");
       if(!imgEl || !pEl || !modelEl || !wEl || !hEl || !seedEl) return;
 
-      const base = String(rawPrompt || pEl.value || "").trim();
+      const base = String(fullPrompt || "").trim();
       if(!base){
         setVisionStatus("Write a prompt");
         return;
       }
 
-      // Keep the final prompt reasonably short
       const clipped = base.length > PROMPT_CHAR_LIMIT ? base.slice(0, PROMPT_CHAR_LIMIT) : base;
-
-      // Reflect user prompt (not the whole stitched text if it's auto)
-      if(rawPrompt === "" || rawPrompt === undefined || rawPrompt === null){
-        // manual
-      } else {
-        // if called from /vision, keep their line in the box
-        if(!rawPrompt.includes("Recent:\n- ")) {
-          pEl.value = base.slice(0, 260);
-        }
-      }
 
       if(reroll || seedEl.value.trim().toLowerCase() === "random" || !seedEl.value.trim()){
         seedEl.value = String(Math.floor(Math.random() * 1e9));
@@ -1208,24 +1204,28 @@ ancient stone, hovering shield motif, subtle prism glow, detailed, high quality
     function initVisionUI(){
       const genBtn = document.getElementById("pGen");
       const rerollBtn = document.getElementById("pReroll");
+
+      function buildManualVisionPrompt(userText){
+        const user = String(userText || "").trim();
+        // Keep manual prompts short-ish, but still include base + style
+        const trimmed = user.length > 420 ? user.slice(0, 420) + "…" : user;
+        return `${AERIN_BASE_VISION_TEXT}\nUser prompt: ${trimmed}\nStyle: ${AERIN_VISION_STYLE}`;
+      }
+
       if(genBtn) genBtn.addEventListener("click", () => {
-        // Manual prompt: stitch base + their prompt + style
         const user = (document.getElementById("pPrompt").value || "").trim();
         if(!user){ setVisionStatus("Write a prompt"); return; }
-        const stitched =
-          `${AERIN_BASE_VISION_TEXT}\nUser prompt: ${user}\nStyle: ${AERIN_VISION_STYLE}`;
-        generateVision(stitched, {reroll:false, talk:true});
+        generateVision(buildManualVisionPrompt(user), {reroll:false, talk:true});
       });
+
       if(rerollBtn) rerollBtn.addEventListener("click", () => {
         const user = (document.getElementById("pPrompt").value || "").trim();
         if(!user){ setVisionStatus("Write a prompt"); return; }
-        const stitched =
-          `${AERIN_BASE_VISION_TEXT}\nUser prompt: ${user}\nStyle: ${AERIN_VISION_STYLE}`;
-        generateVision(stitched, {reroll:true, talk:true});
+        generateVision(buildManualVisionPrompt(user), {reroll:true, talk:true});
       });
     }
 
-    // --- Build auto prompt: base + latest 3 messages, fallback 2 then 1 ---
+    // --- Build AUTO prompt: base + as much recent chat as fits (newest-first) ---
     function normalizeForPrompt(s){
       return String(s || "")
         .replace(/\s+/g, " ")
@@ -1235,16 +1235,23 @@ ancient stone, hovering shield motif, subtle prism glow, detailed, high quality
     }
 
     function isGoodChatHistoryMessage(m){
-      // Skip very short toolkit errors that start with "No."
       const t = normalizeForPrompt(m?.content || "");
       if(!t) return false;
+      // Skip short toolkit errors like "No.\n..."
       if(t.startsWith("No.") && t.length < 90) return false;
       return true;
     }
 
-    function getLatestChatSnippets(maxCount){
-      const out = [];
-      for(let i = messages.length - 1; i >= 0 && out.length < maxCount; i--){
+    function buildMaxHistoryVisionPrompt(){
+      const header =
+        `${AERIN_BASE_VISION_TEXT}\n` +
+        `Style: ${AERIN_VISION_STYLE}\n\n` +
+        `Recent (newest first):\n`;
+
+      const lines = [];
+      let used = header.length;
+
+      for(let i = messages.length - 1; i >= 0; i--){
         const m = messages[i];
         if(!m || (m.role !== "user" && m.role !== "assistant")) continue;
         if(!isGoodChatHistoryMessage(m)) continue;
@@ -1253,32 +1260,29 @@ ancient stone, hovering shield motif, subtle prism glow, detailed, high quality
         const text = normalizeForPrompt(m.content);
         if(!text) continue;
 
-        out.push(`${roleTag}: ${text}`);
-      }
-      return out.reverse();
-    }
+        const line = `- ${roleTag}: ${text}\n`;
 
-    function buildBestFitVisionPrompt(){
-      const base = `${AERIN_BASE_VISION_TEXT}\nStyle: ${AERIN_VISION_STYLE}\n\nRecent:\n`;
-      const choices = [3,2,1];
-
-      for(const n of choices){
-        const snippets = getLatestChatSnippets(n);
-        if(!snippets.length) continue;
-
-        const body = snippets.map(s => `- ${s}`).join("\n");
-        const candidate = base + body;
-
-        if(candidate.length <= PROMPT_CHAR_LIMIT){
-          return candidate;
+        if(used + line.length <= PROMPT_CHAR_LIMIT){
+          lines.push(line);
+          used += line.length;
+          continue;
         }
+
+        // Try a trimmed version of this line, then stop.
+        const remaining = PROMPT_CHAR_LIMIT - used;
+        if(remaining > 24){
+          const trimmed = line.slice(0, remaining - 1) + "\n";
+          lines.push(trimmed);
+          used += trimmed.length;
+        }
+        break;
       }
 
-      // If even 1 message is too long: trim the newest
-      const one = getLatestChatSnippets(1)[0] || "Aerin: (silence)";
-      const room = PROMPT_CHAR_LIMIT - base.length - 4;
-      const trimmed = room > 0 ? one.slice(0, room) : "";
-      return base + `- ${trimmed}`;
+      if(lines.length === 0){
+        return header + "- (silence)\n";
+      }
+
+      return header + lines.join("");
     }
 
     /* ---------------------------
@@ -1646,6 +1650,9 @@ ancient stone, hovering shield motif, subtle prism glow, detailed, high quality
       if(head === "vision" || head === "omen"){
         const prompt = rest.join(" ").trim();
         if(!prompt) throw new Error("Use: /vision candlelit cairn door, blue light, runes");
+        // Update the input box for convenience
+        const pEl = document.getElementById("pPrompt");
+        if(pEl) pEl.value = prompt.slice(0, 260);
         const stitched = `${AERIN_BASE_VISION_TEXT}\nUser prompt: ${prompt}\nStyle: ${AERIN_VISION_STYLE}`;
         generateVision(stitched, {reroll:true, talk:true});
         return;
@@ -1723,6 +1730,7 @@ ancient stone, hovering shield motif, subtle prism glow, detailed, high quality
 
       initVisionUI();
 
+      // Dice
       $("#rollBtn").addEventListener("click", ()=>{
         try{ gmRoll($("#diceExpr").value); }
         catch(e){ aerinSay(`No.\n${e.message}`); }
@@ -1737,10 +1745,12 @@ ancient stone, hovering shield motif, subtle prism glow, detailed, high quality
         aerinSay("The record fades.\nRoll log cleared.");
       });
 
+      // Conditions
       $("#condPlus").addEventListener("click", ()=> gmCondAdjust($("#condSelect").value, +1));
       $("#condMinus").addEventListener("click", ()=> gmCondAdjust($("#condSelect").value, -1));
       $("#condClear").addEventListener("click", gmCondClear);
 
+      // Encounter
       $("#addInitBtn").addEventListener("click", ()=>{
         try{
           addCombatant($("#initName").value, $("#initValue").value);
@@ -1788,6 +1798,7 @@ ancient stone, hovering shield motif, subtle prism glow, detailed, high quality
         }
       });
 
+      // Loot
       $("#genLootBtn").addEventListener("click", ()=> generateLoot($("#lootTier").value));
       $("#clearLootBtn").addEventListener("click", ()=>{
         lootLog = [];
@@ -1796,6 +1807,7 @@ ancient stone, hovering shield motif, subtle prism glow, detailed, high quality
         aerinSay("No coins.\nNo scraps.\nClean slate.");
       });
 
+      // Character
       $("#updateCardBtn").addEventListener("click", ()=>{
         updateCharStateFromInputs();
         aerinSay("I hold the details.\nThey won’t slip.");
@@ -1819,6 +1831,7 @@ ancient stone, hovering shield motif, subtle prism glow, detailed, high quality
         aerinSay("Blank again.\nA quiet page.");
       });
 
+      // Tavern Board
       $("#addPostBtn").addEventListener("click", ()=>{
         try{
           addPost($("#postType").value, $("#postTitle").value.trim(), $("#postBody").value.trim());
