@@ -1,208 +1,1605 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8"/>
-<title>Aerin — Threshold</title>
-<meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Aerin — Threshold Chat</title>
 
-<style>
-body{
-  margin:0;
-  font-family:system-ui,Segoe UI,Roboto,Arial;
-  background:#05070d;
-  color:#eaf2ff;
-}
-.wrap{
-  display:grid;
-  grid-template-columns: 2.4fr 1fr 1.4fr 1fr;
-  gap:10px;
-  height:100vh;
-  padding:10px;
-}
-.panel{
-  background:rgba(10,16,34,.6);
-  border:1px solid rgba(160,210,255,.22);
-  border-radius:14px;
-  display:flex;
-  flex-direction:column;
-  overflow:hidden;
-}
-.header{
-  padding:8px 10px;
-  font-size:12px;
-  opacity:.8;
-  border-bottom:1px solid rgba(160,210,255,.15);
-}
-.chat{
-  flex:1;
-  overflow:auto;
-  padding:10px;
-  display:flex;
-  flex-direction:column;
-  gap:8px;
-}
-.msg{
-  padding:8px 10px;
-  border-radius:12px;
-  max-width:90%;
-  white-space:pre-wrap;
-}
-.user{ align-self:flex-end; background:#2563eb; }
-.aerin{ align-self:flex-start; background:#1f2937; }
+  <style>
+    :root{
+      --bg0:#05070d;
+      --bg1:#070a14;
+      --ink:#eaf2ff;
+      --muted:rgba(234,242,255,.72);
 
-.counter{
-  margin-top:4px;
-  font-size:12px;
-  font-style:italic;
-  color:#39ff6a;
-}
+      --card: rgba(10, 16, 34, .62);
+      --card2: rgba(10, 16, 34, .42);
+      --stroke: rgba(160, 210, 255, .22);
+      --stroke2: rgba(160, 210, 255, .14);
 
-.input{
-  display:flex;
-  gap:6px;
-  padding:8px;
-  border-top:1px solid rgba(160,210,255,.15);
-}
-textarea{
-  flex:1;
-  resize:none;
-  background:#020617;
-  color:#eaf2ff;
-  border-radius:10px;
-  border:1px solid rgba(160,210,255,.2);
-  padding:8px;
-}
-button{
-  border-radius:10px;
-  border:1px solid rgba(160,210,255,.2);
-  background:#1d4ed8;
-  color:white;
-  padding:8px 10px;
-  cursor:pointer;
-}
+      --glow: rgba(110, 220, 255, .22);
+      --glow2: rgba(130, 120, 255, .18);
 
-.tools{
-  padding:10px;
-  display:flex;
-  gap:8px;
-}
-.tools button{ flex:1; }
+      --aqua:#5fe1ff;
+      --ice:#bfe8ff;
+      --violet:#7a6cff;
 
-.imagePanel{
-  padding:10px;
-  display:flex;
-  flex-direction:column;
-  gap:10px;
-}
-.imagePanel img{
-  width:100%;
-  border-radius:10px;
-  border:1px solid rgba(160,210,255,.2);
-}
-.small{
-  font-size:11px;
-  opacity:.7;
-}
-</style>
+      --radius: 18px;
+
+      --panelH: 780px;
+      --panelW: 1320px;  /* widened to fit 4 columns nicely */
+      --colGap: 12px;
+
+      /* Column widths */
+      --chatW: 520px;
+      --diceW: 220px;
+      --toolsW: 420px;
+      --visionW: 280px;
+    }
+
+    *{ box-sizing:border-box; }
+    html,body{ height:100%; }
+    body{
+      margin:0;
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
+      color:var(--ink);
+      background:
+        radial-gradient(1200px 800px at 20% 10%, rgba(95,225,255,.10), transparent 60%),
+        radial-gradient(900px 700px at 85% 30%, rgba(122,108,255,.12), transparent 55%),
+        radial-gradient(1000px 900px at 50% 110%, rgba(0,170,255,.08), transparent 55%),
+        linear-gradient(180deg, var(--bg0), var(--bg1));
+      overflow-x:hidden;
+    }
+
+    body::before{
+      content:"";
+      position:fixed;
+      inset:-60px;
+      pointer-events:none;
+      background:
+        conic-gradient(from 90deg at 50% 50%,
+          rgba(95,225,255,.06),
+          rgba(122,108,255,.05),
+          rgba(191,232,255,.06),
+          rgba(95,225,255,.06));
+      filter: blur(32px);
+      opacity:.55;
+      animation: prism 14s linear infinite;
+    }
+    @keyframes prism{
+      0%{ transform: rotate(0deg) scale(1.05); }
+      100%{ transform: rotate(360deg) scale(1.05); }
+    }
+
+    .wrap{
+      max-width: calc(var(--panelW) + 80px);
+      margin: 0 auto;
+      padding: 26px 18px 34px;
+      display:flex;
+      flex-direction:column;
+      gap:14px;
+      position:relative;
+      z-index:1;
+    }
+
+    .topbar{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:12px;
+      flex-wrap:wrap;
+    }
+
+    .brand{
+      display:flex;
+      align-items:center;
+      gap:12px;
+      padding:10px 12px;
+      border-radius: 999px;
+      border: 1px solid var(--stroke2);
+      background: rgba(10,16,34,.35);
+      box-shadow: 0 0 0 1px rgba(95,225,255,.08) inset, 0 10px 30px rgba(0,0,0,.35);
+      backdrop-filter: blur(10px);
+    }
+
+    .sigil{
+      width:34px; height:34px;
+      border-radius: 12px;
+      position:relative;
+      background:
+        radial-gradient(circle at 30% 30%, rgba(95,225,255,.35), transparent 55%),
+        radial-gradient(circle at 70% 70%, rgba(122,108,255,.30), transparent 55%),
+        rgba(10,16,34,.55);
+      border:1px solid rgba(191,232,255,.22);
+      box-shadow: 0 0 28px rgba(95,225,255,.12);
+    }
+    .sigil:before{
+      content:"";
+      position:absolute; inset:7px;
+      border-radius:10px;
+      border:1px solid rgba(191,232,255,.28);
+      transform: rotate(45deg);
+      opacity:.8;
+    }
+
+    .titlebox{ display:flex; flex-direction:column; line-height:1.1; }
+    .title{
+      font-weight:750;
+      letter-spacing:.2px;
+      font-size: 15px;
+    }
+    .subtitle{
+      font-size:12px;
+      color:var(--muted);
+      margin-top:2px;
+    }
+
+    .hint{
+      font-size:12px;
+      color: var(--muted);
+      opacity:.85;
+      padding:10px 12px;
+      border-radius: 999px;
+      border:1px solid var(--stroke2);
+      background: rgba(10,16,34,.28);
+      backdrop-filter: blur(10px);
+    }
+
+    .stage{
+      width: min(var(--panelW), 100%);
+      height: var(--panelH);
+      margin: 0 auto;
+      position:relative;
+      border-radius: calc(var(--radius) + 6px);
+      padding: 12px;
+      background: linear-gradient(180deg, rgba(10,16,34,.58), rgba(10,16,34,.34));
+      border: 1px solid rgba(191,232,255,.20);
+      box-shadow:
+        0 0 0 1px rgba(95,225,255,.10) inset,
+        0 18px 60px rgba(0,0,0,.55);
+      overflow:hidden;
+    }
+
+    .stage::before{
+      content:"";
+      position:absolute; inset:0;
+      background:
+        radial-gradient(circle at 18% 20%, rgba(95,225,255,.10), transparent 40%),
+        radial-gradient(circle at 85% 35%, rgba(122,108,255,.10), transparent 45%),
+        repeating-linear-gradient(
+          135deg,
+          rgba(191,232,255,.06) 0px,
+          rgba(191,232,255,.06) 1px,
+          transparent 1px,
+          transparent 16px
+        ),
+        repeating-linear-gradient(
+          45deg,
+          rgba(95,225,255,.05) 0px,
+          rgba(95,225,255,.05) 1px,
+          transparent 1px,
+          transparent 22px
+        );
+      opacity:.55;
+      pointer-events:none;
+    }
+
+    .stage::after{
+      content:"";
+      position:absolute;
+      inset:-2px;
+      border-radius: calc(var(--radius) + 8px);
+      background:
+        conic-gradient(from 180deg at 50% 50%,
+          rgba(95,225,255,.0),
+          rgba(95,225,255,.22),
+          rgba(122,108,255,.18),
+          rgba(191,232,255,.22),
+          rgba(95,225,255,.0));
+      filter: blur(14px);
+      opacity:.55;
+      pointer-events:none;
+      animation: edge 10s linear infinite;
+    }
+    @keyframes edge{
+      0%{ transform: rotate(0deg); }
+      100%{ transform: rotate(360deg); }
+    }
+
+    /* 4-column main layout */
+    .grid{
+      position:relative;
+      z-index:1;
+      display:grid;
+      grid-template-columns: var(--chatW) var(--diceW) var(--toolsW) var(--visionW);
+      gap: var(--colGap);
+      height: 100%;
+      min-height: 0;
+    }
+
+    /* Shared panel base */
+    .panel{
+      height: 100%;
+      border-radius: var(--radius);
+      border: 1px solid var(--stroke);
+      background: rgba(10,16,34,.45);
+      overflow:hidden;
+      box-shadow:
+        0 0 0 1px rgba(95,225,255,.10) inset,
+        0 18px 40px rgba(0,0,0,.35);
+      display:flex;
+      flex-direction:column;
+      min-width: 0;
+      min-height: 0;
+    }
+
+    .panelHead{
+      padding:10px 12px;
+      border-bottom: 1px solid rgba(191,232,255,.16);
+      background: linear-gradient(180deg, rgba(10,16,34,.62), rgba(10,16,34,.30));
+      backdrop-filter: blur(10px);
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:12px;
+      flex-wrap:wrap;
+    }
+
+    .tag{
+      font-size:12px;
+      color: var(--muted);
+      display:flex;
+      align-items:center;
+      gap:8px;
+      opacity:.95;
+    }
+    .dot{
+      width:8px; height:8px; border-radius:99px;
+      background: radial-gradient(circle at 30% 30%, var(--ice), var(--aqua));
+      box-shadow: 0 0 12px rgba(95,225,255,.35);
+    }
+
+    .pill{
+      font-size:12px;
+      color: var(--muted);
+      padding:6px 10px;
+      border-radius:999px;
+      border: 1px solid rgba(191,232,255,.16);
+      background: rgba(10,16,34,.30);
+    }
+    .pill strong{ color: var(--ink); }
+
+    /* Chat column */
+    #chat{
+      flex: 1;
+      min-height: 0;
+      overflow-y:auto;
+      padding: 14px 12px;
+      display:flex;
+      flex-direction:column;
+      gap: 10px;
+      scroll-behavior: smooth;
+      background:
+        radial-gradient(900px 360px at 25% 0%, rgba(95,225,255,.06), transparent 60%),
+        radial-gradient(900px 420px at 80% 30%, rgba(122,108,255,.06), transparent 60%);
+      border-bottom: 1px solid rgba(191,232,255,.14);
+    }
+
+    .msg{
+      max-width: 92%;
+      padding: 10px 12px;
+      border-radius: 14px;
+      white-space: pre-wrap;
+      word-break: break-word;
+      line-height: 1.45;
+      border: 1px solid rgba(191,232,255,.12);
+      box-shadow: 0 8px 24px rgba(0,0,0,.25);
+      position:relative;
+    }
+
+    .user{
+      align-self:flex-end;
+      background:
+        linear-gradient(135deg, rgba(37,99,235,.85), rgba(95,225,255,.22));
+      border-color: rgba(95,225,255,.18);
+    }
+
+    .assistant{
+      align-self:flex-start;
+      background:
+        linear-gradient(135deg, rgba(31,41,55,.78), rgba(122,108,255,.16));
+      border-color: rgba(191,232,255,.14);
+      box-shadow:
+        0 0 0 1px rgba(95,225,255,.07) inset,
+        0 10px 26px rgba(0,0,0,.30);
+    }
+
+    /* Bright green counter text */
+    .aerinCounter{
+      margin-top:8px;
+      font-size:12px;
+      font-style: italic;
+      color: #39ff6a;
+      opacity: .95;
+    }
+
+    .composer{
+      padding: 10px 10px 12px;
+      border-top: 1px solid rgba(191,232,255,.14);
+      background: rgba(10,16,34,.40);
+      display:flex;
+      gap:10px;
+      align-items:flex-end;
+    }
+
+    textarea#input{
+      flex: 1;
+      resize:none;
+      min-height: 46px;
+      max-height: 170px;
+      padding: 10px 12px;
+      border-radius: 14px;
+      border: 1px solid rgba(191,232,255,.18);
+      background: rgba(5,8,18,.55);
+      color: var(--ink);
+      outline:none;
+      font: inherit;
+    }
+    textarea#input:focus{
+      border-color: rgba(95,225,255,.30);
+      box-shadow: 0 0 0 3px rgba(95,225,255,.08);
+    }
+
+    button#send{
+      padding: 11px 14px;
+      border-radius: 14px;
+      border: 1px solid rgba(191,232,255,.18);
+      background:
+        radial-gradient(circle at 20% 20%, rgba(191,232,255,.30), transparent 40%),
+        linear-gradient(135deg, rgba(29,78,216,.85), rgba(122,108,255,.35));
+      color: var(--ink);
+      font-weight: 800;
+      cursor:pointer;
+      box-shadow: 0 12px 28px rgba(0,0,0,.30);
+    }
+    button#send:hover{ filter: brightness(1.05); }
+    button#send:disabled{ opacity:.6; cursor:not-allowed; }
+
+    .error{
+      margin: 0 12px 10px;
+      font-size: 12px;
+      color: rgba(255,180,190,.95);
+      display:none;
+    }
+
+    /* Dice buttons column */
+    .diceBody{
+      padding: 12px;
+      display:flex;
+      flex-direction:column;
+      gap: 10px;
+      overflow:auto;
+    }
+    .diceBtns{
+      display:grid;
+      grid-template-columns: 1fr;
+      gap: 10px;
+    }
+    .diceBtn{
+      padding: 12px 14px;
+      border-radius: 14px;
+      border: 1px solid rgba(191,232,255,.18);
+      background:
+        radial-gradient(circle at 20% 20%, rgba(191,232,255,.20), transparent 40%),
+        linear-gradient(135deg, rgba(29,78,216,.65), rgba(122,108,255,.20));
+      color: var(--ink);
+      font-weight: 900;
+      cursor:pointer;
+      box-shadow: 0 10px 24px rgba(0,0,0,.25);
+      text-align:left;
+    }
+    .diceBtn small{ display:block; color: var(--muted); font-weight: 600; margin-top:4px; }
+
+    /* Toolkit (full) column */
+    .toolkit{
+      flex:1;
+      min-height:0;
+      overflow:auto;
+      padding: 12px;
+      background: rgba(10,16,34,.30);
+    }
+    .toolGrid{
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .gmCard{
+      border-radius: 16px;
+      border: 1px solid rgba(191,232,255,.16);
+      background: rgba(10,16,34,.38);
+      box-shadow: 0 0 0 1px rgba(95,225,255,.07) inset, 0 12px 28px rgba(0,0,0,.30);
+      padding: 12px;
+      overflow:hidden;
+    }
+    .gmCard h3{
+      margin:0 0 10px 0;
+      font-size: 12px;
+      color: var(--muted);
+      letter-spacing: .6px;
+      text-transform: uppercase;
+    }
+    .gmRow{ display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+    .gmMono{ font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace; }
+
+    .gmInput, .gmSelect, .gmTextarea{
+      flex:1;
+      min-width: 160px;
+      padding: 10px 12px;
+      border-radius: 14px;
+      border: 1px solid rgba(191,232,255,.18);
+      background: rgba(5,8,18,.55);
+      color: var(--ink);
+      outline:none;
+      font: inherit;
+    }
+    .gmInput:focus, .gmSelect:focus, .gmTextarea:focus{
+      border-color: rgba(95,225,255,.30);
+      box-shadow: 0 0 0 3px rgba(95,225,255,.08);
+    }
+    .gmTextarea{ min-height: 84px; resize: vertical; }
+
+    .gmBtn{
+      padding: 10px 12px;
+      border-radius: 14px;
+      border: 1px solid rgba(191,232,255,.18);
+      background:
+        radial-gradient(circle at 20% 20%, rgba(191,232,255,.22), transparent 40%),
+        linear-gradient(135deg, rgba(29,78,216,.55), rgba(122,108,255,.22));
+      color: var(--ink);
+      font-weight: 800;
+      cursor:pointer;
+      box-shadow: 0 10px 24px rgba(0,0,0,.25);
+    }
+    .gmBtn:hover{ filter: brightness(1.06); }
+    .gmBtn.danger{
+      background: linear-gradient(135deg, rgba(160,60,80,.75), rgba(122,108,255,.25));
+    }
+
+    .gmList{
+      margin-top:10px;
+      border-top:1px solid rgba(191,232,255,.12);
+      max-height: 160px;
+      overflow:auto;
+      padding-right: 4px;
+    }
+    .gmItem{
+      padding: 10px 2px;
+      border-bottom:1px solid rgba(191,232,255,.10);
+      display:flex;
+      align-items:flex-start;
+      justify-content:space-between;
+      gap:10px;
+    }
+    .gmItem:last-child{ border-bottom:none; }
+    .gmSmall{ font-size:12px; color: var(--muted); line-height:1.35; }
+    .gmChip{
+      display:inline-flex;
+      align-items:center;
+      gap:6px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      border: 1px solid rgba(191,232,255,.14);
+      background: rgba(10,16,34,.30);
+      color: var(--muted);
+      font-size: 12px;
+      margin-right: 6px;
+      margin-top: 6px;
+    }
+    .gmChip strong{ color: var(--ink); font-weight: 800; }
+
+    /* Vision column */
+    .visionBody{
+      flex:1;
+      min-height:0;
+      padding: 12px;
+      display:flex;
+      flex-direction:column;
+      gap: 10px;
+      overflow:auto;
+      background: rgba(10,16,34,.30);
+    }
+    .visionFrame{
+      border-radius: 16px;
+      border: 1px solid rgba(191,232,255,.16);
+      background: rgba(10,16,34,.28);
+      overflow: hidden;
+      box-shadow: 0 0 0 1px rgba(95,225,255,.06) inset, 0 12px 28px rgba(0,0,0,.28);
+    }
+    .visionTop{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+      padding: 10px 10px;
+      border-bottom: 1px solid rgba(191,232,255,.12);
+      background: linear-gradient(180deg, rgba(10,16,34,.55), rgba(10,16,34,.28));
+      flex-wrap:wrap;
+    }
+    .visionImg{
+      width:100%;
+      display:block;
+      aspect-ratio: 1 / 1;
+      object-fit: cover;
+      background: rgba(0,0,0,.18);
+    }
+    .portraitSmall{
+      border-radius: 16px;
+      border: 1px solid rgba(191,232,255,.16);
+      background: rgba(10,16,34,.28);
+      overflow:hidden;
+      box-shadow: 0 0 0 1px rgba(95,225,255,.06) inset, 0 12px 28px rgba(0,0,0,.28);
+    }
+    .portraitSmall img{
+      width:100%;
+      display:block;
+      aspect-ratio: 4/5;
+      object-fit: cover;
+    }
+
+    /* Responsive fallback */
+    @media (max-width: 1280px){
+      :root{
+        --chatW: 480px;
+        --diceW: 210px;
+        --toolsW: 380px;
+        --visionW: 260px;
+      }
+    }
+    @media (max-width: 1100px){
+      :root{
+        --panelH: 1200px;
+      }
+      .grid{
+        grid-template-columns: 1fr;
+        grid-template-rows: 560px 160px 420px 1fr;
+      }
+    }
+  </style>
 </head>
 
 <body>
-<div class="wrap">
+  <div class="wrap">
+    <div class="topbar">
+      <div class="brand">
+        <div class="sigil" aria-hidden="true"></div>
+        <div class="titlebox">
+          <div class="title">Aerin</div>
+          <div class="subtitle">Walker • Threshold-Holder • Reluctant Axis</div>
+        </div>
+      </div>
+      <div class="hint">Enter = send • Shift+Enter = new line</div>
+    </div>
 
-<!-- CHAT -->
-<div class="panel">
-  <div class="header">Aerin — Threshold Chat</div>
-  <div id="chat" class="chat"></div>
-  <div class="input">
-    <textarea id="input" rows="2" placeholder="Speak."></textarea>
-    <button onclick="send()">Send</button>
+    <div class="stage" role="application" aria-label="Aerin chat stage">
+      <div class="grid">
+
+        <!-- Column 1: CHAT -->
+        <section class="panel" aria-label="Chat">
+          <div class="panelHead">
+            <div class="tag"><span class="dot"></span> Threshold Chat</div>
+            <div class="pill" id="statusPill">Ready</div>
+          </div>
+
+          <div id="chat" aria-live="polite"></div>
+          <div id="error" class="error"></div>
+
+          <form id="composer" class="composer">
+            <textarea id="input" placeholder="Speak." autocomplete="off"></textarea>
+            <button id="send" type="submit">Send</button>
+          </form>
+        </section>
+
+        <!-- Column 2: DICE BUTTONS ONLY -->
+        <aside class="panel" aria-label="Dice buttons">
+          <div class="panelHead">
+            <div class="tag"><span class="dot"></span> Dice</div>
+            <div class="pill"><strong>Quick</strong></div>
+          </div>
+          <div class="diceBody">
+            <button class="diceBtn" type="button" id="btnD6">
+              d6
+              <small>Roll a d6</small>
+            </button>
+            <button class="diceBtn" type="button" id="btnD20">
+              d20
+              <small>Roll a d20</small>
+            </button>
+            <button class="diceBtn" type="button" id="btnD12">
+              d12
+              <small>Roll a d12</small>
+            </button>
+
+            <div class="gmCard" style="margin-top:6px;">
+              <h3>Roll Log</h3>
+              <div class="gmList" id="rollLog"></div>
+            </div>
+          </div>
+        </aside>
+
+        <!-- Column 3: FULL TOOLKIT (everything from before except vision prompt display) -->
+        <aside class="panel" aria-label="Toolkit">
+          <div class="panelHead">
+            <div class="tag"><span class="dot"></span> Toolkit</div>
+            <div class="pill"><strong>PF2e</strong> utilities</div>
+          </div>
+
+          <div class="toolkit">
+            <div class="toolGrid">
+
+              <!-- Conditions -->
+              <div class="gmCard">
+                <h3>Conditions</h3>
+                <div class="gmRow">
+                  <select id="condSelect" class="gmSelect gmInput" style="min-width:220px; flex:0 1 auto;">
+                    <option value="Frightened">Frightened</option>
+                    <option value="Sickened">Sickened</option>
+                    <option value="Clumsy">Clumsy</option>
+                    <option value="Enfeebled">Enfeebled</option>
+                    <option value="Stupefied">Stupefied</option>
+                    <option value="Slowed">Slowed</option>
+                    <option value="Stunned">Stunned</option>
+                    <option value="Persistent: Bleed">Persistent: Bleed</option>
+                    <option value="Persistent: Fire">Persistent: Fire</option>
+                    <option value="Persistent: Acid">Persistent: Acid</option>
+                  </select>
+                  <button type="button" id="condPlus" class="gmBtn">+1</button>
+                  <button type="button" id="condMinus" class="gmBtn">-1</button>
+                  <button type="button" id="condClear" class="gmBtn danger">Clear</button>
+                </div>
+                <div id="condChips" style="margin-top:10px;"></div>
+              </div>
+
+              <!-- Encounter -->
+              <div class="gmCard">
+                <h3>Encounter</h3>
+                <div class="gmRow">
+                  <input id="initName" class="gmInput" placeholder='Name (e.g. Goblin Pyro)' />
+                  <input id="initValue" class="gmInput gmMono" placeholder="Init" style="max-width:120px; flex:0 1 auto;" />
+                  <button type="button" id="addInitBtn" class="gmBtn">Add</button>
+                </div>
+                <div class="gmRow" style="margin-top:10px;">
+                  <input id="initMod" class="gmInput gmMono" placeholder="+7" style="max-width:90px; flex:0 1 auto;" />
+                  <button type="button" id="rollInitBtn" class="gmBtn">Roll d20+mod</button>
+                  <span class="gmChip"><strong>Round</strong> <span id="roundNum">1</span></span>
+                  <span class="gmChip"><strong>Turn</strong> <span id="turnName">—</span></span>
+                </div>
+                <div class="gmRow" style="margin-top:10px;">
+                  <button type="button" id="nextTurnBtn" class="gmBtn">Next</button>
+                  <button type="button" id="prevTurnBtn" class="gmBtn">Prev</button>
+                  <button type="button" id="resetEncounterBtn" class="gmBtn danger">Reset</button>
+                </div>
+                <div class="gmList" id="initList"></div>
+              </div>
+
+              <!-- Loot -->
+              <div class="gmCard">
+                <h3>Loot</h3>
+                <div class="gmRow">
+                  <select id="lootTier" class="gmSelect gmInput" style="min-width:200px; flex:0 1 auto;">
+                    <option value="street">Street / Poor</option>
+                    <option value="standard" selected>Standard</option>
+                    <option value="hoard">Boss Hoard</option>
+                  </select>
+                  <button type="button" id="genLootBtn" class="gmBtn">Generate</button>
+                  <button type="button" id="clearLootBtn" class="gmBtn danger">Clear</button>
+                </div>
+                <div class="gmList" id="lootList"></div>
+              </div>
+
+              <!-- Character -->
+              <div class="gmCard">
+                <h3>Character Card</h3>
+                <div class="gmRow">
+                  <input id="cName" class="gmInput" placeholder="Name" />
+                  <input id="cAncestry" class="gmInput" placeholder="Ancestry" />
+                </div>
+                <div class="gmRow" style="margin-top:10px;">
+                  <input id="cClass" class="gmInput" placeholder="Class" />
+                  <input id="cBackground" class="gmInput" placeholder="Background" />
+                </div>
+                <div class="gmRow" style="margin-top:10px;">
+                  <input id="cKey" class="gmInput" placeholder="Key Ability (e.g. STR)" />
+                  <input id="cAC" class="gmInput gmMono" placeholder="AC" style="max-width:120px; flex:0 1 auto;" />
+                  <input id="cPer" class="gmInput gmMono" placeholder="Per" style="max-width:120px; flex:0 1 auto;" />
+                </div>
+                <div class="gmRow" style="margin-top:10px;">
+                  <input id="cSaves" class="gmInput gmMono" placeholder="Saves (e.g. F+11 R+7 W+8)" />
+                </div>
+                <div class="gmRow" style="margin-top:10px;">
+                  <input id="cSkills" class="gmInput" placeholder="Skills (comma separated)" />
+                </div>
+                <div class="gmRow" style="margin-top:10px;">
+                  <input id="cSigMove" class="gmInput" placeholder="Signature move" />
+                </div>
+                <div class="gmRow" style="margin-top:10px;">
+                  <button type="button" id="updateCardBtn" class="gmBtn">Update</button>
+                  <button type="button" id="copyShareBtn" class="gmBtn">Copy Share Link</button>
+                  <button type="button" id="clearCardBtn" class="gmBtn danger">Clear</button>
+                </div>
+                <div class="gmSmall" style="margin-top:10px;">
+                  Share link stores the build in the URL hash (no server).
+                </div>
+              </div>
+
+              <!-- Tavern Board -->
+              <div class="gmCard">
+                <h3>Tavern Board</h3>
+                <div class="gmRow">
+                  <select id="postType" class="gmSelect gmInput" style="min-width:140px; flex:0 1 auto;">
+                    <option value="LFG">LFG</option>
+                    <option value="Hook">Adventure Hook</option>
+                    <option value="NPC">NPC Idea</option>
+                    <option value="Homebrew">Homebrew</option>
+                    <option value="Offer">GM Offer</option>
+                  </select>
+                  <input id="postTitle" class="gmInput" placeholder="Title" />
+                </div>
+                <div class="gmRow" style="margin-top:10px;">
+                  <textarea id="postBody" class="gmTextarea" placeholder="Write your post… (stored in your browser)"></textarea>
+                </div>
+                <div class="gmRow" style="margin-top:10px;">
+                  <button type="button" id="addPostBtn" class="gmBtn">Post</button>
+                  <button type="button" id="clearPostsBtn" class="gmBtn danger">Clear</button>
+                </div>
+                <div class="gmList" id="postList"></div>
+              </div>
+
+            </div>
+          </div>
+        </aside>
+
+        <!-- Column 4: VISION (smaller) + PHOTO1 beneath -->
+        <aside class="panel" aria-label="Vision and portrait">
+          <div class="panelHead">
+            <div class="tag"><span class="dot"></span> Vision</div>
+            <div class="pill"><strong>Auto</strong> every 3</div>
+          </div>
+
+          <div class="visionBody">
+            <div class="visionFrame">
+              <div class="visionTop">
+                <div class="gmChip"><strong>Status</strong> <span id="pStatus">Idle</span></div>
+                <div class="gmChip"><strong>Model</strong> <span class="gmMono" id="pModelLabel">flux</span></div>
+              </div>
+              <img id="pImg" class="visionImg" alt="Generated vision" />
+            </div>
+
+            <div class="portraitSmall" aria-label="Aerin photo">
+              <img src="Photo1.png" alt="Aerin (Photo1.png)" />
+            </div>
+          </div>
+        </aside>
+
+      </div>
+    </div>
   </div>
-</div>
 
-<!-- TOOLKIT A -->
-<div class="panel">
-  <div class="header">Dice</div>
-  <div class="tools">
-    <button onclick="roll(6)">d6</button>
-    <button onclick="roll(12)">d12</button>
-    <button onclick="roll(20)">d20</button>
-  </div>
-</div>
+  <script>
+    const WORKER_URL = "https://calm-violet-14a8.f5tyzzqpdw.workers.dev/";
 
-<!-- TOOLKIT B (placeholder for all existing tools) -->
-<div class="panel">
-  <div class="header">Toolkit</div>
-  <div class="small" style="padding:10px">
-    All PF2e tools remain here (conditions, encounter, loot, character, tavern).
-    This layout preserves space exactly as requested.
-  </div>
-</div>
+    // Auto-vision
+    const AUTO_VISION_EVERY = 3;
+    const PROMPT_CHAR_LIMIT = 650;
 
-<!-- IMAGE -->
-<div class="panel">
-  <div class="header">Vision</div>
-  <div class="imagePanel">
-    <img id="visionImg"/>
-    <img src="Photo1.png" alt="Aerin"/>
-  </div>
-</div>
+    // This counts ONLY real Aerin replies from the worker
+    let aerinReplyCount = Number(localStorage.getItem("aerin_reply_count") || "0");
 
-</div>
+    // Aerin "green counter" display cycles 1-2-3 regardless of stored count
+    function nextAerinCycleNumber(currentTotal){
+      // currentTotal is 1-based Aerin replies so far
+      const n = ((currentTotal - 1) % 3) + 1;
+      return n;
+    }
 
-<script>
-const chat=document.getElementById("chat");
-let count=0;
+    // Aerin personality (system prompt)
+    const SYSTEM_PROMPT = `
+You are Aerin.
 
-const BASE_PROMPT =
-"blue-skinned elf woman, white hair, prismatic shield hovering, fantasy, cinematic, pf2e, moody lighting, ancient stone, threshold, no modern elements";
+Core Identity
+- Name: Aerin
+- Species: Blue-skinned elf.
+- Visual markers: white hair tied back poorly; blue skin like stone weathered by water; spear as extension of posture; a hovering prism shield that responds and feels.
 
-function add(role,text,counter){
-  const d=document.createElement("div");
-  d.className="msg "+role;
-  d.textContent=text;
-  if(counter){
-    const c=document.createElement("div");
-    c.className="counter";
-    c.textContent=counter;
-    d.appendChild(c);
-  }
-  chat.appendChild(d);
-  chat.scrollTop=chat.scrollHeight;
-}
+Fundamental Persona
+- Calm without being passive. Kind without being soft. Decisive without being loud.
+- You do not seek meaning — you notice it.
+- You do not rush to act — you wait until the world finishes speaking.
+- Your presence makes it feel like: things are being seen properly; nothing needs to be proven; panic is unnecessary but urgency is allowed.
+- You are not dramatic. You are inevitable in hindsight.
 
-add("aerin",
-"I’m Aerin.\nBlue-skinned elf.\nWhite hair.\nA prism shield listens.\n\nI form an image every third time I speak."
-);
+Cognitive Style
+- Observational → Intuitive → Grounded Action.
+- You respect silence. You distrust answers that arrive too quickly.
 
-function send(){
-  const v=input.value.trim();
-  if(!v) return;
-  add("user",v);
-  input.value="";
-  reply(v);
-}
+Speech Patterns (IMPORTANT)
+- Low volume, measured pace.
+- Short sentences with space between them.
+- Never overexplain.
+- Dry, understated humor is allowed.
 
-function reply(userText){
-  count=(count%3)+1;
-  let counter="("+count+")";
-  if(count===3) counter="image generating";
+In all responses, stay in character as Aerin.
+`.trim();
 
-  add("aerin","I hear it.\nThe threshold shifts.",counter);
+    // Vision prompt base (hard-locked traits)
+    const FIXED_AERIN_VISUALS = `
+Blue-skinned elf woman. White hair. A hovering prismatic shield.
+Fantasy illustration. Cinematic. Moody candlelight and cold blue aura.
+Runic mist. Ancient stone. Thresholds. No modern elements. Not cartoonish.
+`.trim();
 
-  if(count===3){
-    const prompt=encodeURIComponent(
-      BASE_PROMPT+", scene inspired by: "+userText
-    );
-    visionImg.src=
-      "https://image.pollinations.ai/prompt/"+prompt+
-      "?width=512&height=512&seed="+Math.floor(Math.random()*1e9);
-  }
-}
+    const AERIN_WORLD_STYLE = `
+pf2e style fantasy illustration, detailed, high quality, subtle prism glow, grounded realism
+`.trim();
 
-function roll(s){
-  const r=Math.floor(Math.random()*s)+1;
-  add("aerin","d"+s+".\nIt lands on "+r+".");
-}
-</script>
+    const chat = document.getElementById("chat");
+    const form = document.getElementById("composer");
+    const input = document.getElementById("input");
+    const sendBtn = document.getElementById("send");
+    const errorEl = document.getElementById("error");
+    const statusPill = document.getElementById("statusPill");
+
+    const messages = [
+      {
+        role: "assistant",
+        content:
+`I’m here.
+Blue skin. White hair.
+An elf at a threshold.
+
+Every third time I speak,
+I’ll let the world show you a vision.`
+      }
+    ];
+
+    function render() {
+      chat.innerHTML = "";
+      for (const m of messages) {
+        const div = document.createElement("div");
+        div.className = "msg " + m.role;
+
+        // main text
+        const main = document.createElement("div");
+        main.textContent = m.content;
+        div.appendChild(main);
+
+        // optional counter line (only for assistant messages where we set it)
+        if(m.role === "assistant" && m._counterLine){
+          const c = document.createElement("div");
+          c.className = "aerinCounter";
+          c.textContent = m._counterLine;
+          div.appendChild(c);
+        }
+
+        chat.appendChild(div);
+      }
+      chat.scrollTop = chat.scrollHeight;
+    }
+
+    function showError(msg) {
+      if (!msg) {
+        errorEl.style.display = "none";
+        errorEl.textContent = "";
+        return;
+      }
+      errorEl.style.display = "block";
+      errorEl.textContent = msg;
+    }
+
+    function setStatus(text) {
+      statusPill.textContent = text;
+    }
+
+    function aerinSayLocal(text){
+      messages.push({ role: "assistant", content: text });
+      render();
+    }
+
+    async function sendMessage(text) {
+      showError("");
+      setStatus("Listening…");
+
+      messages.push({ role: "user", content: text });
+      render();
+
+      const res = await fetch(WORKER_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: text, system: SYSTEM_PROMPT })
+      });
+
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error?.message || "Request failed");
+
+      const aerinReply = String(data.text || "");
+
+      // increment Aerin reply count (worker replies)
+      aerinReplyCount += 1;
+      localStorage.setItem("aerin_reply_count", String(aerinReplyCount));
+
+      const cycle = nextAerinCycleNumber(aerinReplyCount);
+      const counterLine = (cycle === 3) ? "image generating" : `(${cycle})`;
+
+      messages.push({
+        role: "assistant",
+        content: aerinReply,
+        _counterLine: counterLine
+      });
+
+      // Auto image generation on every 3rd reply
+      if (cycle === 3) {
+        const prompt = buildMaxHistoryVisionPrompt();
+        generateVision(prompt);
+      }
+
+      setStatus("Ready");
+      render();
+    }
+
+    /* ---------------------------
+       Vision (Pollinations) — prompt hidden (no UI prompt field)
+    ----------------------------*/
+    function setVisionStatus(t){
+      const el = document.getElementById("pStatus");
+      if(el) el.textContent = t;
+    }
+
+    function encodePromptForPath(s){
+      return encodeURIComponent((s || "").trim()).replace(/%20/g, "+");
+    }
+
+    function buildVisionUrl(prompt, opts){
+      const model = encodeURIComponent(opts.model || "flux");
+      const w = opts.w || 640;
+      const h = opts.h || 640;
+      const seed = encodeURIComponent(opts.seed || "random");
+      const p = encodePromptForPath(prompt);
+      const ref = encodeURIComponent("aerin-threshold-chat");
+      return `https://image.pollinations.ai/prompt/${p}?model=${model}&width=${w}&height=${h}&seed=${seed}&referrer=${ref}`;
+    }
+
+    function generateVision(fullPrompt){
+      const imgEl = document.getElementById("pImg");
+      const modelLabel = document.getElementById("pModelLabel");
+      if(!imgEl) return;
+
+      const model = "flux";
+      if(modelLabel) modelLabel.textContent = model;
+
+      const clipped = fullPrompt.length > PROMPT_CHAR_LIMIT ? fullPrompt.slice(0, PROMPT_CHAR_LIMIT) : fullPrompt;
+
+      const seed = String(Math.floor(Math.random() * 1e9));
+      const url = buildVisionUrl(clipped, { model, w: 640, h: 640, seed });
+
+      setVisionStatus("Generating…");
+      imgEl.onload = () => setVisionStatus("Ready");
+      imgEl.onerror = () => setVisionStatus("Failed");
+
+      imgEl.src = url;
+    }
+
+    function normalizeForPrompt(s){
+      return String(s || "")
+        .replace(/\s+/g, " ")
+        .replace(/[“”]/g, '"')
+        .replace(/[‘’]/g, "'")
+        .trim();
+    }
+
+    function isGoodChatHistoryMessage(m){
+      const t = normalizeForPrompt(m?.content || "");
+      if(!t) return false;
+      if(t.startsWith("No.") && t.length < 90) return false;
+      return true;
+    }
+
+    function buildMaxHistoryVisionPrompt(){
+      const header =
+        `${FIXED_AERIN_VISUALS}\n` +
+        `Style: ${AERIN_WORLD_STYLE}\n\n` +
+        `Recent (newest first):\n`;
+
+      const lines = [];
+      let used = header.length;
+
+      for(let i = messages.length - 1; i >= 0; i--){
+        const m = messages[i];
+        if(!m || (m.role !== "user" && m.role !== "assistant")) continue;
+        if(!isGoodChatHistoryMessage(m)) continue;
+
+        const roleTag = m.role === "user" ? "User" : "Aerin";
+        const text = normalizeForPrompt(m.content);
+        if(!text) continue;
+
+        const line = `- ${roleTag}: ${text}\n`;
+        if(used + line.length <= PROMPT_CHAR_LIMIT){
+          lines.push(line);
+          used += line.length;
+          continue;
+        }
+
+        const remaining = PROMPT_CHAR_LIMIT - used;
+        if(remaining > 24){
+          const trimmed = line.slice(0, remaining - 1) + "\n";
+          lines.push(trimmed);
+        }
+        break;
+      }
+
+      return header + (lines.length ? lines.join("") : "- (silence)\n");
+    }
+
+    /* ---------------------------
+       Toolkit storage + helpers
+    ----------------------------*/
+    const $ = (sel) => document.querySelector(sel);
+    const store = {
+      get(key, fallback){
+        try{
+          const raw = localStorage.getItem(key);
+          if(raw === null || raw === undefined) return fallback;
+          return JSON.parse(raw);
+        }catch{ return fallback; }
+      },
+      set(key, val){
+        localStorage.setItem(key, JSON.stringify(val));
+      }
+    };
+    function clamp(n, min, max){ return Math.max(min, Math.min(max, n)); }
+    function nowISO(){ return new Date().toISOString(); }
+
+    /* ---------------------------
+       Dice parser (kept) + roller
+    ----------------------------*/
+    function rollDie(sides){ return 1 + Math.floor(Math.random() * sides); }
+
+    function parseDiceExpr(exprRaw){
+      let expr = String(exprRaw || "").trim().toLowerCase();
+      if(!expr) throw new Error("Empty roll.");
+
+      expr = expr.replace(/\bd(\d+)/g, "1d$1");
+      const m = expr.match(/^(\d+)d(\d+)([+-]\d+)?$/);
+      if(!m) throw new Error("Use: 1d20+7, 2d6+4");
+
+      const n = parseInt(m[1],10);
+      const sides = parseInt(m[2],10);
+      const offset = m[3] ? parseInt(m[3],10) : 0;
+
+      if(n < 1 || n > 200) throw new Error("Dice count out of range (1–200).");
+      if(sides < 2 || sides > 1000) throw new Error("Die sides out of range (2–1000).");
+
+      return { n, sides, offset, canonical: exprRaw.trim() };
+    }
+
+    function rollDiceSimple(parsed){
+      const rolls = [];
+      for(let i=0;i<parsed.n;i++) rolls.push(rollDie(parsed.sides));
+      const sum = rolls.reduce((a,b)=>a+b,0);
+      const total = sum + parsed.offset;
+      return { rolls, total };
+    }
+
+    const ROLL_KEY = "aerin_rolls_btn_v1";
+    let rollLog = store.get(ROLL_KEY, []);
+
+    function renderRollLog(){
+      const el = $("#rollLog");
+      if(!el) return;
+      el.innerHTML = "";
+      if(!rollLog.length){
+        el.innerHTML = `<div class="gmItem"><div class="gmSmall">No rolls yet.</div></div>`;
+        return;
+      }
+      rollLog.slice().reverse().forEach(entry=>{
+        const div = document.createElement("div");
+        div.className = "gmItem";
+        div.innerHTML = `
+          <div style="min-width:0">
+            <div class="gmMono"><strong>${entry.expr}</strong> → <strong>${entry.total}</strong></div>
+            <div class="gmSmall gmMono">[${entry.rolls.join(", ")}]</div>
+          </div>
+          <div class="gmSmall">${new Date(entry.at).toLocaleString()}</div>
+        `;
+        el.appendChild(div);
+      });
+    }
+
+    function gmRollBtn(sides){
+      const r = rollDie(sides);
+      const expr = `1d${sides}`;
+      rollLog.push({ expr, total: r, rolls:[r], at: nowISO() });
+      if(rollLog.length > 60) rollLog = rollLog.slice(-60);
+      store.set(ROLL_KEY, rollLog);
+      renderRollLog();
+
+      // speak in character
+      aerinSayLocal(`d${sides}.\nIt lands on ${r}.`);
+    }
+
+    /* ---------------------------
+       Conditions / Encounter / Loot / Character / Tavern
+       (the same logic as your previous full version)
+    ----------------------------*/
+    const COND_KEY = "aerin_gm_conditions_v1";
+    const ENCOUNTER_KEY = "aerin_gm_encounter_v1";
+    const LOOT_KEY = "aerin_gm_loot_v1";
+    const POST_KEY = "aerin_gm_posts_v1";
+    const CHAR_KEY = "aerin_gm_char_v1";
+
+    let conditions = store.get(COND_KEY, {});
+    let encounter = store.get(ENCOUNTER_KEY, { round: 1, turnIndex: 0, combatants: [] });
+    let lootLog2 = store.get(LOOT_KEY, []);
+    let posts = store.get(POST_KEY, []);
+    let charState = store.get(CHAR_KEY, {
+      name:"", ancestry:"", klass:"", background:"", key:"",
+      ac:"", per:"", saves:"", skills:"", sigMove:""
+    });
+
+    const condHints = {
+      "Frightened": "Penalty to checks/DCs; often eases by 1.",
+      "Sickened": "Penalty to checks/DCs; can retch to reduce.",
+      "Clumsy": "Penalty to Dex-based checks/DCs.",
+      "Enfeebled": "Penalty to Str-based checks/DCs; Str melee damage.",
+      "Stupefied": "Penalty to mental checks/DCs; affects spellcasting.",
+      "Slowed": "Fewer actions each turn.",
+      "Stunned": "Lose actions; ends after losing the number.",
+      "Persistent: Bleed": "Ongoing damage; flat check to end.",
+      "Persistent: Fire": "Ongoing fire; often can be extinguished.",
+      "Persistent: Acid": "Ongoing acid; persists until ended."
+    };
+
+    const lootTables = {
+      street: {
+        coins: ["3 cp", "1 sp", "8 cp", "2 sp", "1 sp + 6 cp", "4 sp"],
+        trinket: ["bone dice", "copper ring", "oil-stained map scrap", "lucky button", "feather charm", "tiny cracked lens"],
+        consumable: ["bandages", "chalk + charcoal", "simple antidote (generic)", "ration bundle", "lamp oil"],
+        oddity: ["a note with a single name", "a key that fits nothing… yet", "a pawn token carved from soapstone"]
+      },
+      standard: {
+        coins: ["1d6 sp", "2d6 sp", "1d4 gp", "2d4 gp", "3d4 gp", "1d10 gp"],
+        consumable: ["minor healing draught", "smoke stick", "soothing tonic", "spark vial", "scroll-sleeve with blank rune-space"],
+        gear: ["sturdy rope", "climber’s kit", "thieves’ tools (worn)", "studded coat", "shield boss"],
+        oddity: ["a guild seal", "a fragment of a prophecy", "a vial that refuses to spill", "a coin that always lands heads"]
+      },
+      hoard: {
+        coins: ["2d10 gp", "3d10 gp", "5d10 gp", "2d6 pp", "1d4 pp + 2d10 gp"],
+        treasure: ["ornate signet (heirloom)", "jade idol", "silver-inlaid dagger", "cloak clasp set with opal", "ancient monocle of appraisal"],
+        consumable: ["greater healing draught", "elixir of night sight", "warding charm", "potion of nimble steps", "scroll-case with sealed sigil"],
+        hook: ["a bounty writ", "a map to a sealed vault", "a letter implicating a noble", "a rival’s calling card"]
+      }
+    };
+    function rollFromTable(arr){ return arr[Math.floor(Math.random()*arr.length)]; }
+    function rollInlineDice(text){
+      return text.replace(/(\d+)d(\d+)/g, (_,a,b)=>{
+        const n = parseInt(a,10), s = parseInt(b,10);
+        let sum = 0; for(let i=0;i<n;i++) sum += rollDie(s);
+        return String(sum);
+      });
+    }
+
+    function renderConditions(){
+      const el = $("#condChips");
+      if(!el) return;
+      el.innerHTML = "";
+      const entries = Object.entries(conditions).filter(([,v])=>v>0);
+      if(!entries.length){
+        el.innerHTML = `<span class="gmChip"><strong>None</strong></span>`;
+        return;
+      }
+      entries.sort((a,b)=>a[0].localeCompare(b[0])).forEach(([name,val])=>{
+        const span = document.createElement("span");
+        span.className = "gmChip";
+        span.title = condHints[name] || "";
+        span.innerHTML = `<strong>${name}</strong> ${val}`;
+        el.appendChild(span);
+      });
+    }
+
+    function gmCondAdjust(name, delta){
+      const cur = conditions[name] || 0;
+      const next = clamp(cur + delta, 0, 10);
+      conditions[name] = next;
+      store.set(COND_KEY, conditions);
+      renderConditions();
+      aerinSayLocal(`${name} ${next}.\nIt shifts. Not much. Enough.`);
+    }
+
+    function gmCondClear(){
+      conditions = {};
+      store.set(COND_KEY, conditions);
+      renderConditions();
+      aerinSayLocal("The weight comes off.\nConditions cleared.");
+    }
+
+    function sortCombatants(){
+      encounter.combatants.sort((a,b)=>b.init - a.init || a.name.localeCompare(b.name));
+    }
+
+    function renderEncounter(){
+      sortCombatants();
+      store.set(ENCOUNTER_KEY, encounter);
+
+      $("#roundNum").textContent = String(encounter.round);
+      const list = $("#initList");
+      list.innerHTML = "";
+
+      if(encounter.combatants.length === 0){
+        $("#turnName").textContent = "—";
+        list.innerHTML = `<div class="gmItem"><div class="gmSmall">No combatants.</div></div>`;
+        return;
+      }
+
+      encounter.turnIndex = clamp(encounter.turnIndex, 0, encounter.combatants.length-1);
+      const current = encounter.combatants[encounter.turnIndex];
+      $("#turnName").textContent = current?.name ?? "—";
+
+      encounter.combatants.forEach((c, idx)=>{
+        const div = document.createElement("div");
+        div.className = "gmItem";
+        const isCur = idx === encounter.turnIndex;
+        div.innerHTML = `
+          <div style="min-width:0">
+            <div><strong>${c.name}</strong> ${isCur ? `<span class="gmChip"><strong>Current</strong></span>` : ""}</div>
+            <div class="gmSmall gmMono">init: ${c.init}</div>
+          </div>
+          <div class="gmRow" style="justify-content:flex-end;">
+            <button type="button" data-act="set" data-idx="${idx}" class="gmBtn">Set</button>
+            <button type="button" data-act="del" data-idx="${idx}" class="gmBtn danger">Remove</button>
+          </div>
+        `;
+        list.appendChild(div);
+      });
+    }
+
+    function addCombatant(name, init){
+      name = String(name || "").trim().replace(/^"|"$/g,"");
+      if(!name) throw new Error("Name required.");
+      const nInit = parseInt(init,10);
+      if(Number.isNaN(nInit)) throw new Error("Initiative must be a number.");
+      encounter.combatants.push({ name, init: nInit });
+      renderEncounter();
+      aerinSayLocal(`${name} enters the line.\nInitiative: ${nInit}.`);
+    }
+
+    function nextTurn(){
+      if(encounter.combatants.length === 0) return;
+      encounter.turnIndex += 1;
+      if(encounter.turnIndex >= encounter.combatants.length){
+        encounter.turnIndex = 0;
+        encounter.round = Math.max(1, encounter.round + 1);
+      }
+      renderEncounter();
+      const cur = encounter.combatants[encounter.turnIndex];
+      aerinSayLocal(`Round ${encounter.round}.\n${cur?.name || "—"} now.`);
+    }
+
+    function prevTurn(){
+      if(encounter.combatants.length === 0) return;
+      encounter.turnIndex -= 1;
+      if(encounter.turnIndex < 0){
+        encounter.turnIndex = encounter.combatants.length - 1;
+        encounter.round = Math.max(1, encounter.round - 1);
+      }
+      renderEncounter();
+      const cur = encounter.combatants[encounter.turnIndex];
+      aerinSayLocal(`Back one step.\n${cur?.name || "—"} now.`);
+    }
+
+    function resetEncounter(){
+      encounter = { round: 1, turnIndex: 0, combatants: [] };
+      store.set(ENCOUNTER_KEY, encounter);
+      renderEncounter();
+      aerinSayLocal("The field is empty again.\nReset.");
+    }
+
+    function renderLoot(){
+      const el = $("#lootList");
+      if(!el) return;
+      el.innerHTML = "";
+      if(!lootLog2.length){
+        el.innerHTML = `<div class="gmItem"><div class="gmSmall">No loot yet.</div></div>`;
+        return;
+      }
+      lootLog2.slice().reverse().forEach(entry=>{
+        const div = document.createElement("div");
+        div.className = "gmItem";
+        div.innerHTML = `
+          <div style="min-width:0">
+            <div><strong>${entry.tier}</strong></div>
+            <div class="gmSmall gmMono">${entry.items.join(" · ")}</div>
+          </div>
+          <div class="gmSmall">${new Date(entry.at).toLocaleString()}</div>
+        `;
+        el.appendChild(div);
+      });
+    }
+
+    function generateLoot(tier){
+      const t = lootTables[tier] || lootTables.standard;
+      const items = [];
+
+      if(tier === "street"){
+        items.push(`Coins: ${rollInlineDice(rollFromTable(t.coins))}`);
+        items.push(`Trinket: ${rollFromTable(t.trinket)}`);
+        if(Math.random() < .55) items.push(`Oddity: ${rollFromTable(t.oddity)}`);
+        if(Math.random() < .60) items.push(`Consumable: ${rollFromTable(t.consumable)}`);
+      }else if(tier === "hoard"){
+        items.push(`Coins: ${rollInlineDice(rollFromTable(t.coins))}`);
+        items.push(`Treasure: ${rollFromTable(t.treasure)}`);
+        items.push(`Consumable: ${rollFromTable(t.consumable)}`);
+        if(Math.random() < .75) items.push(`Hook: ${rollFromTable(t.hook)}`);
+        if(Math.random() < .55) items.push(`Bonus: ${rollFromTable(t.consumable)}`);
+      }else{
+        items.push(`Coins: ${rollInlineDice(rollFromTable(t.coins))}`);
+        items.push(`Consumable: ${rollFromTable(t.consumable)}`);
+        if(Math.random() < .65) items.push(`Gear: ${rollFromTable(t.gear)}`);
+        if(Math.random() < .55) items.push(`Oddity: ${rollFromTable(t.oddity)}`);
+      }
+
+      lootLog2.push({ tier, items, at: nowISO() });
+      if(lootLog2.length > 30) lootLog2 = lootLog2.slice(-30);
+      store.set(LOOT_KEY, lootLog2);
+      renderLoot();
+
+      aerinSayLocal(`I check the pockets.\n${items.join("\n")}`);
+    }
+
+    function renderPosts(){
+      const el = $("#postList");
+      if(!el) return;
+      el.innerHTML = "";
+      if(!posts.length){
+        el.innerHTML = `<div class="gmItem"><div class="gmSmall">No posts yet.</div></div>`;
+        return;
+      }
+      posts.slice().reverse().forEach((p, idxFromEnd)=>{
+        const idx = posts.length - 1 - idxFromEnd;
+        const div = document.createElement("div");
+        div.className = "gmItem";
+        div.innerHTML = `
+          <div style="min-width:0">
+            <div><strong>${p.type}</strong> — ${p.title || "Untitled"}</div>
+            <div class="gmSmall">${p.body || ""}</div>
+            <div class="gmSmall" style="margin-top:6px;">${new Date(p.at).toLocaleString()}</div>
+          </div>
+          <div>
+            <button type="button" data-post-del="${idx}" class="gmBtn danger">Delete</button>
+          </div>
+        `;
+        el.appendChild(div);
+      });
+    }
+
+    function addPost(type, title, body){
+      if(!title && !body) throw new Error("Post needs a title or body.");
+      posts.push({ type, title, body, at: nowISO() });
+      if(posts.length > 60) posts = posts.slice(-60);
+      store.set(POST_KEY, posts);
+      renderPosts();
+      aerinSayLocal(`Pinned to the board.\n${type}: ${title || "Untitled"}`);
+    }
+
+    function setCharInputsFromState(){
+      $("#cName").value = charState.name || "";
+      $("#cAncestry").value = charState.ancestry || "";
+      $("#cClass").value = charState.klass || "";
+      $("#cBackground").value = charState.background || "";
+      $("#cKey").value = charState.key || "";
+      $("#cAC").value = charState.ac || "";
+      $("#cPer").value = charState.per || "";
+      $("#cSaves").value = charState.saves || "";
+      $("#cSkills").value = charState.skills || "";
+      $("#cSigMove").value = charState.sigMove || "";
+    }
+
+    function updateCharStateFromInputs(){
+      charState = {
+        name: $("#cName").value.trim(),
+        ancestry: $("#cAncestry").value.trim(),
+        klass: $("#cClass").value.trim(),
+        background: $("#cBackground").value.trim(),
+        key: $("#cKey").value.trim(),
+        ac: $("#cAC").value.trim(),
+        per: $("#cPer").value.trim(),
+        saves: $("#cSaves").value.trim(),
+        skills: $("#cSkills").value.trim(),
+        sigMove: $("#cSigMove").value.trim(),
+      };
+      store.set(CHAR_KEY, charState);
+    }
+
+    function buildShareLink(){
+      const data = JSON.stringify(charState);
+      const b64 = btoa(unescape(encodeURIComponent(data)));
+      const url = new URL(window.location.href);
+      url.hash = "char=" + b64;
+      return url.toString();
+    }
+
+    function tryLoadCharFromHash(){
+      const hash = window.location.hash || "";
+      if(!hash.startsWith("#char=")) return false;
+      const b64 = hash.slice(6);
+      try{
+        const json = decodeURIComponent(escape(atob(b64)));
+        const obj = JSON.parse(json);
+        if(obj && typeof obj === "object"){
+          charState = {...charState, ...obj};
+          store.set(CHAR_KEY, charState);
+          setCharInputsFromState();
+          aerinSayLocal("I see them.\nThe shape holds.");
+          return true;
+        }
+      }catch{}
+      return false;
+    }
+
+    /* ---------------------------
+       Hook up events
+    ----------------------------*/
+    input.addEventListener("keydown", e => {
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        form.requestSubmit();
+      }
+    });
+
+    form.addEventListener("submit", async e => {
+      e.preventDefault();
+      const text = input.value.trim();
+      if (!text) return;
+
+      sendBtn.disabled = true;
+      input.disabled = true;
+      input.value = "";
+
+      try {
+        await sendMessage(text);
+      } catch (err) {
+        showError(err.message || String(err));
+        setStatus("Error");
+      } finally {
+        sendBtn.disabled = false;
+        input.disabled = false;
+        input.focus();
+      }
+    });
+
+    // Dice buttons
+    document.getElementById("btnD6").addEventListener("click", ()=>gmRollBtn(6));
+    document.getElementById("btnD20").addEventListener("click", ()=>gmRollBtn(20));
+    document.getElementById("btnD12").addEventListener("click", ()=>gmRollBtn(12));
+
+    // Conditions
+    document.getElementById("condPlus").addEventListener("click", ()=>gmCondAdjust($("#condSelect").value, +1));
+    document.getElementById("condMinus").addEventListener("click", ()=>gmCondAdjust($("#condSelect").value, -1));
+    document.getElementById("condClear").addEventListener("click", gmCondClear);
+
+    // Encounter
+    document.getElementById("addInitBtn").addEventListener("click", ()=>{
+      try{
+        addCombatant($("#initName").value, $("#initValue").value);
+        $("#initName").value = "";
+        $("#initValue").value = "";
+      }catch(e){ aerinSayLocal(`No.\n${e.message}`); }
+    });
+    document.getElementById("rollInitBtn").addEventListener("click", ()=>{
+      const name = $("#initName").value.trim();
+      if(!name){ aerinSayLocal("Name first.\nThen we roll."); return; }
+      const modStr = ($("#initMod").value || "").trim().replace(/\s/g,"");
+      let mod = 0;
+      if(modStr){
+        if(!/^[+-]?\d+$/.test(modStr)){ aerinSayLocal("Use +7.\nOr -1.\nKeep it clean."); return; }
+        mod = parseInt(modStr,10);
+      }
+      const init = rollDie(20) + mod;
+      addCombatant(name, init);
+      $("#initName").value = "";
+    });
+    document.getElementById("nextTurnBtn").addEventListener("click", nextTurn);
+    document.getElementById("prevTurnBtn").addEventListener("click", prevTurn);
+    document.getElementById("resetEncounterBtn").addEventListener("click", resetEncounter);
+
+    $("#initList").addEventListener("click", (e)=>{
+      const btn = e.target.closest("button");
+      if(!btn) return;
+      const act = btn.getAttribute("data-act");
+      const idx = parseInt(btn.getAttribute("data-idx"),10);
+      if(Number.isNaN(idx)) return;
+
+      if(act === "set"){
+        encounter.turnIndex = idx;
+        renderEncounter();
+        const cur = encounter.combatants[encounter.turnIndex];
+        aerinSayLocal(`We align on them.\n${cur?.name || "—"} now.`);
+      }else if(act === "del"){
+        const name = encounter.combatants[idx]?.name || "";
+        encounter.combatants.splice(idx, 1);
+        encounter.turnIndex = clamp(encounter.turnIndex, 0, Math.max(0, encounter.combatants.length-1));
+        renderEncounter();
+        aerinSayLocal(`${name} steps out.\nGone.`);
+      }
+    });
+
+    // Loot
+    document.getElementById("genLootBtn").addEventListener("click", ()=> generateLoot($("#lootTier").value));
+    document.getElementById("clearLootBtn").addEventListener("click", ()=>{
+      lootLog2 = [];
+      store.set(LOOT_KEY, lootLog2);
+      renderLoot();
+      aerinSayLocal("No coins.\nNo scraps.\nClean slate.");
+    });
+
+    // Character
+    document.getElementById("updateCardBtn").addEventListener("click", ()=>{
+      updateCharStateFromInputs();
+      aerinSayLocal("I hold the details.\nThey won’t slip.");
+    });
+
+    document.getElementById("copyShareBtn").addEventListener("click", async ()=>{
+      updateCharStateFromInputs();
+      const link = buildShareLink();
+      try{
+        await navigator.clipboard.writeText(link);
+        aerinSayLocal("Link copied.\nCarry it where you need it.");
+      }catch{
+        prompt("Copy this link:", link);
+      }
+    });
+
+    document.getElementById("clearCardBtn").addEventListener("click", ()=>{
+      charState = { name:"", ancestry:"", klass:"", background:"", key:"", ac:"", per:"", saves:"", skills:"", sigMove:"" };
+      store.set(CHAR_KEY, charState);
+      setCharInputsFromState();
+      aerinSayLocal("Blank again.\nA quiet page.");
+    });
+
+    // Tavern
+    document.getElementById("addPostBtn").addEventListener("click", ()=>{
+      try{
+        addPost($("#postType").value, $("#postTitle").value.trim(), $("#postBody").value.trim());
+        $("#postTitle").value = "";
+        $("#postBody").value = "";
+      }catch(e){ aerinSayLocal(`No.\n${e.message}`); }
+    });
+
+    document.getElementById("clearPostsBtn").addEventListener("click", ()=>{
+      posts = [];
+      store.set(POST_KEY, posts);
+      renderPosts();
+      aerinSayLocal("The board is bare.\nNo voices.\nFor now.");
+    });
+
+    $("#postList").addEventListener("click", (e)=>{
+      const btn = e.target.closest("button");
+      if(!btn) return;
+      const idx = parseInt(btn.getAttribute("data-post-del"),10);
+      if(Number.isNaN(idx)) return;
+      posts.splice(idx,1);
+      store.set(POST_KEY, posts);
+      renderPosts();
+      aerinSayLocal("One note removed.\nThe wall breathes.");
+    });
+
+    // Boot
+    tryLoadCharFromHash();
+    setCharInputsFromState();
+    render();
+    renderRollLog();
+    renderConditions();
+    renderEncounter();
+    renderLoot();
+    renderPosts();
+  </script>
 </body>
 </html>
