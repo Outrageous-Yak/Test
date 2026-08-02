@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { SCENE_KEYS, COLORS, UI, FONTS, GAME_VERSION } from '../constants';
+import { SCENE_KEYS, UI, FONTS, GAME_VERSION } from '../constants';
 import { createTouchButton, type TouchButtonHandle } from '../ui/TouchButton';
 import { MenuPanel } from '../ui/MenuPanel';
 import { GameState } from '../state/GameState';
@@ -43,17 +43,8 @@ export class MainMenuScene extends Phaser.Scene {
   private drawBackground(): void {
     const { width, height } = this.cameras.main;
 
-    const top = this.add.rectangle(width / 2, height * 0.25, width, height * 0.5, COLORS.BACKGROUND_TOP);
-    const bottom = this.add.rectangle(width / 2, height * 0.75, width, height * 0.5, COLORS.BACKGROUND_BOTTOM);
-    const sun = this.add.circle(width * 0.85, height * 0.18, 60, COLORS.MANGO, 0.35);
-    const hillLeft = this.add.ellipse(width * 0.15, height * 0.82, 320, 120, COLORS.LEAF_GREEN, 0.5);
-    const hillRight = this.add.ellipse(width * 0.78, height * 0.88, 400, 140, COLORS.LEAF_GREEN, 0.45);
-
-    this.add.existing(top);
-    this.add.existing(bottom);
-    this.add.existing(sun);
-    this.add.existing(hillLeft);
-    this.add.existing(hillRight);
+    this.cameras.main.setBackgroundColor('#000000');
+    this.add.rectangle(width / 2, height / 2, width, height, 0x000000);
   }
 
   private createTitle(): void {
