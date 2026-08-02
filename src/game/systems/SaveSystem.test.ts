@@ -132,3 +132,57 @@ describe('character selection persistence', () => {
     expect(SaveSystem.load().selectedCharacter).toBeNull();
   });
 });
+
+describe('car selection persistence', () => {
+  beforeEach(() => {
+    localStorage.clear();
+  });
+
+  it('accepts valid selectedCar values', () => {
+    expect(mergeWithDefaults({ selectedCar: 'mango-car' }).selectedCar).toBe('mango-car');
+    expect(mergeWithDefaults({ selectedCar: 'red-car' }).selectedCar).toBe('red-car');
+    expect(mergeWithDefaults({ selectedCar: null }).selectedCar).toBeNull();
+  });
+
+  it('rejects unknown selectedCar values safely', () => {
+    expect(mergeWithDefaults({ selectedCar: 'blue-car' }).selectedCar).toBeNull();
+    expect(mergeWithDefaults({ selectedCar: 99 }).selectedCar).toBeNull();
+  });
+
+  it('filters invalid entries from unlockedCars', () => {
+    const state = mergeWithDefaults({ unlockedCars: ['mango-car', 'blue-car', 'red-car'] });
+    expect(state.unlockedCars).toEqual(['mango-car', 'red-car']);
+  });
+
+  it('falls back to defaults when unlockedCars is entirely invalid', () => {
+    const state = mergeWithDefaults({ unlockedCars: ['blue-car', 'green-car'] });
+    expect(state.unlockedCars).toEqual(['mango-car', 'red-car']);
+  });
+
+  it('persists selectedCar across reload', () => {
+    const state = mergeWithDefaults({ selectedCar: 'red-car' });
+    SaveSystem.save(state);
+    expect(SaveSystem.load().selectedCar).toBe('red-car');
+  });
+
+  it('does not crash on unknown stored car selection', () => {
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({ selectedCar: 'unknown-car' }),
+    );
+    expect(() => SaveSystem.load()).not.toThrow();
+    expect(SaveSystem.load().selectedCar).toBeNull();
+  });
+
+  it('keeps Phase 2 saves compatible when car fields are absent', () => {
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({ selectedCharacter: 'mango', coins: 5 }),
+    );
+    const state = SaveSystem.load();
+    expect(state.selectedCharacter).toBe('mango');
+    expect(state.selectedCar).toBeNull();
+    expect(state.unlockedCars).toEqual(['mango-car', 'red-car']);
+    expect(state.coins).toBe(5);
+  });
+});
