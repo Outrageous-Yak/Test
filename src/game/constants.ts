@@ -3,7 +3,7 @@ export const GAME_WIDTH = 1280;
 export const GAME_HEIGHT = 720;
 
 /** Application version shown in menu and credits */
-export const GAME_VERSION = '0.5.0';
+export const GAME_VERSION = '0.6.0';
 
 /** Minimum touch target size (Apple HIG recommendation) */
 export const MIN_TOUCH_TARGET = 48;

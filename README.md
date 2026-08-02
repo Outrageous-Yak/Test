@@ -58,27 +58,33 @@ Backward navigation retains all valid selections. Selections persist across relo
 
 ## Current Phase
 
-**Phase 0–3** ✅ Foundation, menu, character & car selection  
-**Phase 4** ✅ Track selection & race-loading flow  
-**Phase 5** ✅ First playable race prototype (Mango Meadows)
+**Phase 0** ✅ Foundation  
+**Phase 1** ✅ Main menu & save system  
+**Phase 2** ✅ Character selection  
+**Phase 3** ✅ Car selection  
+**Phase 4** ✅ Track selection & race loading  
+**Phase 5** ✅ First playable driving prototype  
+**Phase 6** ✅ Race rules, checkpoints, laps, timer, and finish state
 
-Phase 5 implemented:
+Phase 6 implemented:
 
-- `RaceScene` with arcade driving physics
-- Procedural Mango Meadows track (`TrackRenderer`)
-- Player car with auto-acceleration, steering, and braking
-- Smooth camera follow with zoom and world bounds
-- Touch controls (LEFT/RIGHT/BRAKE) and desktop arrow keys
-- Pause menu (Resume, Restart Race, Main Menu)
-- Debug HUD (Speed, FPS) toggled with D key
-- Version **0.5.0**
+- Pre-race countdown (3, 2, 1, GO!) with input lock until GO
+- Ordered checkpoint system around Mango Meadows (8 zones)
+- Three-lap race with start-line exploit protection
+- Race timer (`mm:ss.mmm`) with pause/resume support
+- Race HUD (lap counter + elapsed time)
+- Wrong-way detection with sustained feedback
+- Missed-checkpoint protection at finish line
+- Finish state and results panel (RACE AGAIN / MAIN MENU)
+- Expanded debug mode (checkpoint zones, indices, race phase)
+- Version **0.6.0**
 
 ## Roadmap
 
 | Phase | Focus |
 |-------|-------|
-| **Phase 0–5** | Complete ✅ |
-| **Phase 6** | AI opponents, laps, checkpoints, polish |
+| **Phase 0–6** | Complete ✅ |
+| **Phase 7** | AI opponents, race positions, progression |
 
 ## Deployment
 

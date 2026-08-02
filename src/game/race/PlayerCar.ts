@@ -12,6 +12,8 @@ export class PlayerCar {
   private spawnX: number;
   private spawnY: number;
   private spawnAngle: number;
+  private inputEnabled = true;
+  private readonly forwardVector = new Phaser.Math.Vector2();
 
   constructor(scene: Phaser.Scene, x: number, y: number, angle: number, color: number = RACE_COLORS.CAR_DEFAULT) {
     this.spawnX = x;
@@ -38,6 +40,40 @@ export class PlayerCar {
     return Math.abs(this.speed);
   }
 
+  getForwardVector(): Phaser.Math.Vector2 {
+    this.forwardVector.set(Math.cos(this.sprite.rotation), Math.sin(this.sprite.rotation));
+    return this.forwardVector;
+  }
+
+  getRotation(): number {
+    return this.sprite.rotation;
+  }
+
+  getVelocity(): { x: number; y: number } {
+    return { x: this.body.velocity.x, y: this.body.velocity.y };
+  }
+
+  setInputEnabled(enabled: boolean): void {
+    this.inputEnabled = enabled;
+    if (!enabled) {
+      this.body.setVelocity(0, 0);
+    }
+  }
+
+  stop(): void {
+    this.speed = 0;
+    this.body.setVelocity(0, 0);
+  }
+
+  /** Gradually decelerate after race finish */
+  coastToStop(deltaMs: number): void {
+    const dt = deltaMs / 1000;
+    this.speed = Math.max(0, this.speed - DRIVING.BRAKE_FORCE * dt * 0.6);
+    const vx = Math.cos(this.sprite.rotation) * this.speed;
+    const vy = Math.sin(this.sprite.rotation) * this.speed;
+    this.body.setVelocity(vx, vy);
+  }
+
   /** Reduce speed after barrier collision so bounce feels responsive. */
   onBarrierHit(): void {
     this.speed *= 0.55;
@@ -47,6 +83,11 @@ export class PlayerCar {
   }
 
   update(deltaMs: number, input: RaceInput): void {
+    if (!this.inputEnabled) {
+      this.body.setVelocity(0, 0);
+      return;
+    }
+
     const dt = deltaMs / 1000;
 
     if (input.brake) {
@@ -79,6 +120,7 @@ export class PlayerCar {
     this.sprite.setPosition(this.spawnX, this.spawnY);
     this.sprite.setRotation(this.spawnAngle);
     this.speed = 0;
+    this.inputEnabled = true;
     this.body.setVelocity(0, 0);
     this.body.reset(this.spawnX, this.spawnY);
   }

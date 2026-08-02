@@ -1,5 +1,7 @@
 import Phaser from 'phaser';
 import { RACE_WORLD, RACE_COLORS, BARRIER } from './raceConstants';
+import { getMangoMeadowsCheckpoints } from './mangoMeadowsCheckpoints';
+import type { CheckpointDefinition } from './raceTypes';
 
 export interface TrackBuildResult {
   worldWidth: number;
@@ -8,6 +10,7 @@ export interface TrackBuildResult {
   startY: number;
   startAngle: number;
   barriers: Phaser.Physics.Arcade.StaticGroup;
+  checkpoints: readonly CheckpointDefinition[];
 }
 
 /**
@@ -66,6 +69,7 @@ export class TrackRenderer {
       startY,
       startAngle: tangent,
       barriers,
+      checkpoints: getMangoMeadowsCheckpoints(),
     };
   }
 
