@@ -454,6 +454,7 @@ export class RaceScene extends Phaser.Scene {
       this.participantManager?.resume();
       if (!this.participantManager?.getPlayerParticipant().racerProgress.finished) {
         this.touchControls?.setEnabled(true);
+        this.touchControls?.setDimmed(false);
       }
       this.checkpointSystem?.setEnabled(true);
       this.pauseOverlay?.setVisible(false);

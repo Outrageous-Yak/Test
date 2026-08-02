@@ -197,6 +197,40 @@ export function knobRadius(padRadius: number): number {
   return Math.max(12, Math.min(20, padRadius * 0.16));
 }
 
+/** Convert screen pointer position to panel-local coordinates (origin top-left). */
+export function pointerToPanelCoords(
+  pointerX: number,
+  pointerY: number,
+  centerX: number,
+  centerY: number,
+  panelWidth: number,
+  panelHeight: number,
+): { x: number; y: number } {
+  return {
+    x: pointerX - centerX + panelWidth / 2,
+    y: pointerY - centerY + panelHeight / 2,
+  };
+}
+
+export function isPointerInsidePanel(
+  pointerX: number,
+  pointerY: number,
+  centerX: number,
+  centerY: number,
+  panelWidth: number,
+  panelHeight: number,
+): boolean {
+  const { x, y } = pointerToPanelCoords(
+    pointerX,
+    pointerY,
+    centerX,
+    centerY,
+    panelWidth,
+    panelHeight,
+  );
+  return x >= 0 && x <= panelWidth && y >= 0 && y <= panelHeight;
+}
+
 export function isZeroRaceInput(input: RaceInput): boolean {
   return (
     input.steer === 0 &&

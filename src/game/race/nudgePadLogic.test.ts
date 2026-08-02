@@ -6,6 +6,8 @@ import {
   controlsFromNudgeVector,
   createReverseLatchState,
   getNudgeActionLabel,
+  isPointerInsidePanel,
+  pointerToPanelCoords,
   resolveBrakeAndReverse,
   vectorFromTouch,
   vectorMagnitude,
@@ -157,6 +159,19 @@ describe('nudgePadLogic input reset and labels', () => {
   it('does not show MAX when only steering horizontally', () => {
     const intent = { steer: 1, throttle: 0, upwardDemand: 0 };
     expect(getNudgeActionLabel(intent, 40, createReverseLatchState())).toBe('COAST');
+  });
+});
+
+describe('nudgePadLogic pointer bounds', () => {
+  it('detects pointer inside panel bounds', () => {
+    expect(isPointerInsidePanel(1100, 650, 1100, 650, 240, 256)).toBe(true);
+    expect(isPointerInsidePanel(0, 0, 1100, 650, 240, 256)).toBe(false);
+  });
+
+  it('maps pointer to panel coordinates from centre', () => {
+    const coords = pointerToPanelCoords(1100, 650, 1100, 650, 240, 256);
+    expect(coords.x).toBe(120);
+    expect(coords.y).toBe(128);
   });
 });
 
