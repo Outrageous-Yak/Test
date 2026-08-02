@@ -33,7 +33,7 @@ npm run preview
 ## Selection Flow
 
 ```text
-Main Menu → Character Select → Car Select → Track Select → Race Loading (placeholder)
+Main Menu → Character Select → Car Select → Track Select → Race Loading → Race
 ```
 
 Backward navigation retains all valid selections. Selections persist across reloads.
@@ -45,7 +45,8 @@ Backward navigation retains all valid selections. Selections persist across relo
 | Character Select | ← Mango, → Ruby, Enter, Esc |
 | Car Select | ← Mango Car, → Red Car, Enter, Esc |
 | Track Select | ← prev unlocked, → next unlocked, Enter, Esc |
-| Race Loading | Enter (START RACE placeholder), Esc |
+| Race Loading | Enter (START RACE), Esc |
+| Race | ← → steer, ↓ brake, D debug, Esc pause |
 
 ## Tracks
 
@@ -58,24 +59,26 @@ Backward navigation retains all valid selections. Selections persist across relo
 ## Current Phase
 
 **Phase 0–3** ✅ Foundation, menu, character & car selection  
-**Phase 4** ✅ Track selection & race-loading flow
+**Phase 4** ✅ Track selection & race-loading flow  
+**Phase 5** ✅ First playable race prototype (Mango Meadows)
 
-Phase 4 implemented:
+Phase 5 implemented:
 
-- Three track cards with placeholder Phaser previews
-- `TrackCard` component with difficulty display and locked state
-- Track selection persistence via `GameState` / `SaveSystem`
-- `unlockTrack()` API for future progression
-- `RaceLoadingScene` placeholder with racer/car/track/laps summary
-- Version **0.4.0**
+- `RaceScene` with arcade driving physics
+- Procedural Mango Meadows track (`TrackRenderer`)
+- Player car with auto-acceleration, steering, and braking
+- Smooth camera follow with zoom and world bounds
+- Touch controls (LEFT/RIGHT/BRAKE) and desktop arrow keys
+- Pause menu (Resume, Restart Race, Main Menu)
+- Debug HUD (Speed, FPS) toggled with D key
+- Version **0.5.0**
 
 ## Roadmap
 
 | Phase | Focus |
 |-------|-------|
-| **Phase 0–4** | Complete ✅ |
-| **Phase 5** | Core racing gameplay |
-| **Phase 6** | AI, boost, polish |
+| **Phase 0–5** | Complete ✅ |
+| **Phase 6** | AI opponents, laps, checkpoints, polish |
 
 ## Deployment
 
