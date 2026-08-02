@@ -13,12 +13,11 @@ import {
 } from '../utils/flowRecovery';
 
 /**
- * Race Loading Scene — Phase 4 placeholder before gameplay in Phase 5.
+ * Race Loading Scene — summary screen before entering the race.
  */
 export class RaceLoadingScene extends Phaser.Scene {
   private backButton!: TouchButtonHandle;
   private startButton!: TouchButtonHandle;
-  private statusText!: Phaser.GameObjects.Text;
   private dotsText!: Phaser.GameObjects.Text;
   private dotsTimer?: Phaser.Time.TimerEvent;
   private readonly isTransitioning = { value: false };
@@ -102,16 +101,6 @@ export class RaceLoadingScene extends Phaser.Scene {
       })
       .setOrigin(0.5);
 
-    this.statusText = this.add
-      .text(width / 2, height * 0.66, '', {
-        fontFamily: FONTS.PRIMARY,
-        fontSize: '20px',
-        color: '#ff6b35',
-        align: 'center',
-        wordWrap: { width: 500 },
-      })
-      .setOrigin(0.5);
-
     this.backButton = createTouchButton(this, {
       x: width / 2 - 180,
       y: height * 0.82,
@@ -148,12 +137,9 @@ export class RaceLoadingScene extends Phaser.Scene {
   }
 
   private onStartRace(): void {
-    if (this.startRaceCooldown) return;
+    if (this.startRaceCooldown || this.isTransitioning.value) return;
     this.startRaceCooldown = true;
-    this.statusText.setText('Racing begins in Phase 5');
-    this.time.delayedCall(500, () => {
-      this.startRaceCooldown = false;
-    });
+    fadeToScene(this, SCENE_KEYS.RACE, this.isTransitioning);
   }
 
   private readonly onEscapeKey = (): void => {

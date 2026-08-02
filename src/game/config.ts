@@ -6,6 +6,7 @@ import { CharacterSelectScene } from './scenes/CharacterSelectScene';
 import { CarSelectScene } from './scenes/CarSelectScene';
 import { TrackSelectScene } from './scenes/TrackSelectScene';
 import { RaceLoadingScene } from './scenes/RaceLoadingScene';
+import { RaceScene } from './scenes/RaceScene';
 import { GAME_WIDTH, GAME_HEIGHT, COLORS } from './constants';
 
 /**
@@ -37,7 +38,7 @@ export function createGameConfig(parent: string | HTMLElement): Phaser.Types.Cor
       roundPixels: false,
       powerPreference: 'high-performance',
     },
-    scene: [BootScene, PreloadScene, MainMenuScene, CharacterSelectScene, CarSelectScene, TrackSelectScene, RaceLoadingScene],
+    scene: [BootScene, PreloadScene, MainMenuScene, CharacterSelectScene, CarSelectScene, TrackSelectScene, RaceLoadingScene, RaceScene],
     fps: {
       target: 60,
       forceSetTimeOut: false,
