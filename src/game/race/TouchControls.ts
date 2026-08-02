@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { FONTS, GAME_HEIGHT, GAME_WIDTH, MIN_TOUCH_TARGET } from '../constants';
+import { HUD_INSETS } from './raceHudInsets';
 
 export interface RaceInput {
   steerLeft: boolean;
@@ -21,6 +22,8 @@ export class TouchControls {
   private readonly scene: Phaser.Scene;
   private readonly buttons: Record<'left' | 'right' | 'brake', ControlButton>;
   private readonly cursors?: Phaser.Types.Input.Keyboard.CursorKeys;
+  private enabled = true;
+  private dimmed = false;
 
   constructor(scene: Phaser.Scene) {
     this.scene = scene;
@@ -28,8 +31,8 @@ export class TouchControls {
 
     const btnW = 88;
     const btnH = Math.max(MIN_TOUCH_TARGET, 64);
-    const margin = 36;
-    const bottomY = GAME_HEIGHT - margin - btnH / 2;
+    const margin = HUD_INSETS.LEFT;
+    const bottomY = GAME_HEIGHT - HUD_INSETS.BOTTOM - btnH / 2;
 
     this.buttons = {
       left: this.createButton(margin + btnW / 2, bottomY, btnW, btnH, 'LEFT'),
@@ -39,6 +42,10 @@ export class TouchControls {
   }
 
   getInput(): RaceInput {
+    if (!this.enabled) {
+      return { steerLeft: false, steerRight: false, brake: false };
+    }
+
     const keyboardLeft = this.cursors?.left.isDown ?? false;
     const keyboardRight = this.cursors?.right.isDown ?? false;
     const keyboardBrake = this.cursors?.down.isDown ?? false;
@@ -54,6 +61,39 @@ export class TouchControls {
     Object.values(this.buttons).forEach((btn) => {
       btn.zone.setVisible(visible);
       btn.label.setVisible(visible);
+    });
+  }
+
+  setEnabled(enabled: boolean): void {
+    this.enabled = enabled;
+    if (!enabled) {
+      this.clearInput();
+    }
+    this.applyDimState();
+  }
+
+  setDimmed(dimmed: boolean): void {
+    this.dimmed = dimmed;
+    this.applyDimState();
+  }
+
+  clearInput(): void {
+    Object.values(this.buttons).forEach((btn) => {
+      btn.active = false;
+      btn.zone.setFillStyle(0x000000, 0.45);
+    });
+  }
+
+  private applyDimState(): void {
+    const alpha = !this.enabled || this.dimmed ? 0.4 : 1;
+    Object.values(this.buttons).forEach((btn) => {
+      btn.zone.setAlpha(alpha);
+      btn.label.setAlpha(alpha);
+      if (!this.enabled) {
+        btn.zone.disableInteractive();
+      } else {
+        btn.zone.setInteractive({ useHandCursor: false });
+      }
     });
   }
 
@@ -92,6 +132,7 @@ export class TouchControls {
     const button: ControlButton = { zone, label, active: false };
 
     zone.on('pointerdown', () => {
+      if (!this.enabled) return;
       button.active = true;
       zone.setFillStyle(0xff6b35, 0.7);
     });
