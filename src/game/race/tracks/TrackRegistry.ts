@@ -2,8 +2,13 @@ import type { TrackId } from '../../state/gameStateTypes';
 import type { PlayableTrackDefinition } from './trackTypes';
 import { mangoMeadowsTrack } from './mangoMeadows/mangoMeadowsTrack';
 import { rubyCoastTrack } from './rubyCoast/rubyCoastTrack';
+import { volcanoRushTrack } from './volcanoRush/volcanoRushTrack';
 
-const PLAYABLE_TRACKS: PlayableTrackDefinition[] = [mangoMeadowsTrack, rubyCoastTrack];
+const PLAYABLE_TRACKS: PlayableTrackDefinition[] = [
+  mangoMeadowsTrack,
+  rubyCoastTrack,
+  volcanoRushTrack,
+];
 
 const trackMap = new Map<TrackId, PlayableTrackDefinition>(
   PLAYABLE_TRACKS.map((track) => [track.id, track]),

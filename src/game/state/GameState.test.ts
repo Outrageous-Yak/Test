@@ -201,4 +201,53 @@ describe('GameState career progression', () => {
     expect(GameState.settings.controlStyle).toBe('tilt');
     expect(GameState.getState().selectedCharacter).toBe('mango');
   });
+
+  it('resetCareer relocks all tracks and resets selected track to Mango Meadows', () => {
+    GameState.unlockTrack('ruby-coast');
+    GameState.unlockTrack('volcano-rush');
+    GameState.setSelectedTrack('volcano-rush');
+    GameState.recordRaceResult({
+      trackId: 'mango-meadows',
+      playerPosition: 1,
+      finishTimeMs: 70_000,
+      fastestLapMs: null,
+      didFinish: true,
+    });
+
+    GameState.resetCareer();
+
+    expect(GameState.isTrackUnlocked('ruby-coast')).toBe(false);
+    expect(GameState.isTrackUnlocked('volcano-rush')).toBe(false);
+    expect(GameState.getState().selectedTrack).toBe('mango-meadows');
+    expect(GameState.isCareerComplete()).toBe(false);
+  });
+
+  it('isCareerComplete when all three tracks won', () => {
+    GameState.recordRaceResult({
+      trackId: 'mango-meadows',
+      playerPosition: 1,
+      finishTimeMs: 70_000,
+      fastestLapMs: null,
+      didFinish: true,
+    });
+    GameState.unlockTrack('ruby-coast');
+    GameState.recordRaceResult({
+      trackId: 'ruby-coast',
+      playerPosition: 1,
+      finishTimeMs: 90_000,
+      fastestLapMs: null,
+      didFinish: true,
+    });
+    GameState.unlockTrack('volcano-rush');
+    GameState.recordRaceResult({
+      trackId: 'volcano-rush',
+      playerPosition: 1,
+      finishTimeMs: 110_000,
+      fastestLapMs: null,
+      didFinish: true,
+    });
+
+    expect(GameState.isCareerComplete()).toBe(true);
+    expect(GameState.isTrackCompleted('volcano-rush')).toBe(true);
+  });
 });

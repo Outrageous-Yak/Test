@@ -56,7 +56,7 @@ Backward navigation retains all valid selections. Selections persist across relo
 |-------|------------|---------------|
 | Mango Meadows | Easy | Unlocked (playable) |
 | Ruby Coast | Medium | Locked until Mango Meadows win (playable when unlocked) |
-| Volcano Rush | Hard | Locked until Ruby Coast win (unlocked in career, playable Phase 10) |
+| Volcano Rush | Hard | Locked until Ruby Coast win (playable when unlocked) |
 
 ## Current Phase
 
@@ -69,24 +69,24 @@ Backward navigation retains all valid selections. Selections persist across relo
 **Phase 6** ✅ Race rules, checkpoints, laps, timer, and finish state  
 **Phase 7** ✅ AI opponents, race position, and finishing order  
 **Phase 8** ✅ Career progression, unlocks, best times, and persistent save  
-**Phase 9** ✅ Multi-track engine and playable Ruby Coast
+**Phase 9** ✅ Multi-track engine and playable Ruby Coast  
+**Phase 10** ✅ Playable Volcano Rush and three-track completion
 
-Phase 9 implemented:
+Phase 10 implemented:
 
-- Reusable multi-track architecture with `TrackRegistry` and typed track definitions
-- Mango Meadows migrated to the new engine without gameplay changes
-- Ruby Coast fully playable — coastal circuit with unique geometry, checkpoints, and AI path
-- Dynamic race loading from `GameState.selectedTrack` (no Mango Meadows default)
-- Winning Ruby Coast unlocks Volcano Rush (visible as unlocked but not yet playable)
-- Track-specific camera, barriers, grid, and AI tuning per track
-- Version **0.9.0**
+- Volcano Rush fully playable via the shared `TrackRegistry`
+- Unique volcanic circuit with lava bridge, switchback, chicane, and crater curve
+- Career completion when all three tracks are won (1st place each)
+- Career screen shows per-track status and CAREER COMPLETE badge
+- Independent Volcano Rush best times and save compatibility
+- Version **1.0.0** — first complete three-track gameplay build
 
 ## Roadmap
 
 | Phase | Focus |
 |-------|-------|
-| **Phase 0–9** | Complete ✅ |
-| **Phase 10** | Volcano Rush gameplay, audio, polish |
+| **Phase 0–10** | Complete ✅ |
+| **Phase 11** | Audio, polish, garage upgrades |
 
 ## Deployment
 

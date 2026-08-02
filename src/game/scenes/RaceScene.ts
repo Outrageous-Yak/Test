@@ -327,6 +327,9 @@ export class RaceScene extends Phaser.Scene {
           coinsEarned: outcome.coinsEarned,
           isNewRecord: outcome.isNewRecord,
           trackUnlocked: outcome.trackUnlocked,
+          trackMarkedComplete: outcome.trackMarkedComplete,
+          careerComplete: outcome.careerComplete,
+          trackId: state.selectedTrack,
         };
       }
 

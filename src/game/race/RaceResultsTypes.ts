@@ -17,6 +17,9 @@ export interface RaceCareerSummary {
   coinsEarned: number;
   isNewRecord: boolean;
   trackUnlocked: TrackId | null;
+  trackMarkedComplete: boolean;
+  careerComplete: boolean;
+  trackId: TrackId | null;
 }
 
 export interface RaceResultsPayload {

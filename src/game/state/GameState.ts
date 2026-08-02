@@ -9,6 +9,7 @@ import {
   type CareerStateSlice,
 } from '../career/careerState';
 import type { RaceCareerInput, RaceCareerOutcome } from '../career/careerLogic';
+import { isCareerComplete } from '../career/careerLogic';
 import {
   DEFAULT_GAME_STATE,
   type CharacterId,
@@ -109,6 +110,10 @@ class GameStateManager {
     return this.state.completedTracks.includes(trackId);
   }
 
+  isCareerComplete(): boolean {
+    return isCareerComplete(this.state.completedTracks);
+  }
+
   getCareerStatistics(): Readonly<SerializableGameState['careerStatistics']> {
     return this.state.careerStatistics;
   }
@@ -135,8 +140,8 @@ class GameStateManager {
     const slice = this.getCareerSlice();
     const next = resetCareerProgress(slice);
     this.applyCareerSlice(next);
-    if (this.state.selectedTrack && !this.isTrackUnlocked(this.state.selectedTrack)) {
-      this.state.selectedTrack = null;
+    if (!this.state.selectedTrack || !this.isTrackUnlocked(this.state.selectedTrack)) {
+      this.state.selectedTrack = 'mango-meadows';
     }
     this.persist();
   }

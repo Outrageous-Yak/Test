@@ -288,5 +288,5 @@ export function resetRaceProgress(totalLaps: number): {
 export function isSupportedRaceTrack(trackId: string | null): boolean {
   if (trackId === null) return false;
   // Re-exported from TrackRegistry at runtime to avoid circular imports in tests
-  return trackId === 'mango-meadows' || trackId === 'ruby-coast';
+  return trackId === 'mango-meadows' || trackId === 'ruby-coast' || trackId === 'volcano-rush';
 }

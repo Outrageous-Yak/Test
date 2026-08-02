@@ -164,7 +164,7 @@ describe('checkpointLogic', () => {
   it('validates supported race track', () => {
     expect(isSupportedRaceTrack('mango-meadows')).toBe(true);
     expect(isSupportedRaceTrack('ruby-coast')).toBe(true);
-    expect(isSupportedRaceTrack('volcano-rush')).toBe(false);
+    expect(isSupportedRaceTrack('volcano-rush')).toBe(true);
     expect(isSupportedRaceTrack(null)).toBe(false);
   });
 });
