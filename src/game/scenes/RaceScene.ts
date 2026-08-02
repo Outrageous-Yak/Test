@@ -1,35 +1,36 @@
 import Phaser from 'phaser';
 import { SCENE_KEYS, FONTS, GAME_WIDTH, GAME_HEIGHT } from '../constants';
 import { getCarById } from '../data/cars';
-import { getCharacterDisplayName } from '../data/characters';
 import { getTrackById, getTrackDisplayName } from '../data/tracks';
 import { GameState } from '../state/GameState';
 import { createTouchButton, type TouchButtonHandle } from '../ui/TouchButton';
 import { fadeInScene, fadeToScene } from '../utils/sceneTransition';
+import { AiRacer } from '../race/AiRacer';
 import { CameraController } from '../race/CameraController';
 import { CheckpointSystem } from '../race/CheckpointSystem';
 import { CountdownController } from '../race/CountdownController';
-import { PlayerCar } from '../race/PlayerCar';
 import { RaceHud } from '../race/RaceHud';
-import { RaceManager } from '../race/RaceManager';
 import { RaceMessageController } from '../race/RaceMessageController';
+import { RaceParticipantManager } from '../race/RaceParticipantManager';
 import { RaceResultsPanel } from '../race/RaceResultsPanel';
 import { TouchControls } from '../race/TouchControls';
 import { TrackRenderer } from '../race/TrackRenderer';
 import { HUD_INSETS } from '../race/raceHudInsets';
 import { getRaceLaunchRedirectScene } from '../race/raceValidation';
-import type { RacePhase } from '../race/raceTypes';
+import { getMangoMeadowsRaceData } from '../race/tracks/mangoMeadowsRaceData';
+import type { RacePhase, RacerId } from '../race/raceTypes';
+
+const RACER_COUNT = 4;
 
 /**
- * Race Scene — Mango Meadows time-trial with countdown, checkpoints, laps, and finish state.
+ * Race Scene — four-racer Mango Meadows event with AI opponents.
  */
 export class RaceScene extends Phaser.Scene {
   private trackRenderer?: TrackRenderer;
-  private player?: PlayerCar;
+  private participantManager?: RaceParticipantManager;
   private cameraController?: CameraController;
   private touchControls?: TouchControls;
   private checkpointSystem?: CheckpointSystem;
-  private raceManager?: RaceManager;
   private countdown?: CountdownController;
   private raceHud?: RaceHud;
   private messages?: RaceMessageController;
@@ -40,13 +41,16 @@ export class RaceScene extends Phaser.Scene {
   private restartButton?: TouchButtonHandle;
   private mainMenuButton?: TouchButtonHandle;
   private debugText?: Phaser.GameObjects.Text;
+  private debugGraphics?: Phaser.GameObjects.Graphics;
   private debugEnabled = false;
   private readonly isTransitioning = { value: false };
   private debugKey?: Phaser.Input.Keyboard.Key;
   private pauseKey?: Phaser.Input.Keyboard.Key;
   private visibilityHandler?: () => void;
   private totalLaps = 3;
-  private finishDelayTimer?: Phaser.Time.TimerEvent;
+  private resultsDelayTimer?: Phaser.Time.TimerEvent;
+  private resultsShown = false;
+  private carColliders: Phaser.Physics.Arcade.Collider[] = [];
 
   constructor() {
     super({
@@ -74,34 +78,48 @@ export class RaceScene extends Phaser.Scene {
     const state = GameState.getState();
     const trackDef = getTrackById(state.selectedTrack!);
     this.totalLaps = trackDef.lapCount;
+    const raceData = getMangoMeadowsRaceData();
+    const carDef = getCarById(state.selectedCar!);
 
     this.trackRenderer = new TrackRenderer(this);
     const track = this.trackRenderer.buildMangoMeadows();
 
     this.physics.world.setBounds(0, 0, track.worldWidth, track.worldHeight);
 
-    const carDef = getCarById(state.selectedCar!);
-    this.player = new PlayerCar(
+    this.participantManager = new RaceParticipantManager(
       this,
-      track.startX,
-      track.startY,
-      track.startAngle,
+      raceData,
+      this.totalLaps,
       carDef.primaryColor,
     );
 
-    this.physics.add.collider(this.player.getGameObject(), track.barriers, () => {
-      this.player?.onBarrierHit();
+    const cars = this.participantManager.getAllCars();
+    cars.forEach((car) => {
+      this.physics.add.collider(car.getGameObject(), track.barriers, () => {
+        car.onBarrierHit();
+      });
     });
 
-    this.raceManager = new RaceManager(this.totalLaps, track.checkpoints);
-    this.raceManager.setSpawn(track.startX, track.startY);
+    for (let i = 0; i < cars.length; i += 1) {
+      for (let j = i + 1; j < cars.length; j += 1) {
+        const collider = this.physics.add.collider(
+          cars[i].getGameObject(),
+          cars[j].getGameObject(),
+          undefined,
+          undefined,
+          this,
+        );
+        this.carColliders.push(collider);
+      }
+    }
 
     this.checkpointSystem = new CheckpointSystem(this);
     this.checkpointSystem.build(track.checkpoints);
-    this.checkpointSystem.onEnter = (index) => this.onCheckpointEnter(index);
-    this.checkpointSystem.onExit = (index) => this.raceManager?.handleCheckpointExit(index);
+    this.checkpointSystem.onEnter = (racerId, index) => this.onCheckpointEnter(racerId, index);
+    this.checkpointSystem.onExit = (racerId, index) =>
+      this.participantManager?.handleCheckpointExit(racerId, index);
 
-    this.cameraController = new CameraController(this, this.player);
+    this.cameraController = new CameraController(this, this.participantManager.getPlayerCar());
     this.touchControls = new TouchControls(this);
     this.countdown = new CountdownController(this);
     this.raceHud = new RaceHud(this);
@@ -117,72 +135,73 @@ export class RaceScene extends Phaser.Scene {
     this.setupInput();
     this.setupVisibilityHandler();
 
-    this.lockDriving();
-    this.raceManager.beginCountdown();
+    this.participantManager.lockAllDriving();
+    this.participantManager.beginCountdown();
     this.startCountdown();
     fadeInScene(this);
   }
 
   update(_time: number, delta: number): void {
-    if (!this.player || !this.touchControls || !this.cameraController || !this.raceManager) return;
+    if (!this.participantManager || !this.touchControls || !this.cameraController) return;
 
     if (Phaser.Input.Keyboard.JustDown(this.debugKey!)) {
       this.toggleDebug();
     }
 
-    const phase = this.raceManager.getProgress().phase;
+    const phase = this.participantManager.getPhase();
 
-    if (Phaser.Input.Keyboard.JustDown(this.pauseKey!) && phase !== 'countdown' && phase !== 'finished') {
+    if (
+      Phaser.Input.Keyboard.JustDown(this.pauseKey!) &&
+      phase !== 'countdown' &&
+      phase !== 'finished'
+    ) {
       this.setPaused(true);
     }
 
     if (phase === 'paused') return;
 
-    const carObj = this.player.getGameObject();
-    const velocity = this.player.getVelocity();
+    const player = this.participantManager.getPlayerParticipant();
+    const input = this.touchControls.getInput();
+    const updateResult = this.participantManager.update(delta, input);
 
-    const managerUpdate = this.raceManager.update(
-      delta,
-      carObj.x,
-      carObj.y,
-      velocity.x,
-      velocity.y,
-      this.player.getRotation(),
-    );
-
-    this.checkpointSystem?.setEnabled(managerUpdate.canProcessCheckpoints);
-    if (managerUpdate.canProcessCheckpoints) {
-      this.checkpointSystem?.update(carObj.x, carObj.y);
+    this.checkpointSystem?.setEnabled(updateResult.canProcessCheckpoints);
+    if (updateResult.canProcessCheckpoints) {
+      this.participantManager.getParticipants().forEach((p) => {
+        this.checkpointSystem?.updateRacer(p.id, p.car.getX(), p.car.getY());
+      });
     }
 
-    this.updateWrongWayMessage(managerUpdate.wrongWay.active);
+    this.updateWrongWayMessage(updateResult.playerWrongWay);
+    this.updateHud(phase, player, updateResult.playerFinished);
+    this.updateDebug(phase);
 
-    const progress = this.raceManager.getProgress();
-    this.updateHud(progress.phase, progress.currentLap, progress.totalLaps, progress.elapsedTimeMs);
-    this.updateDebug(progress.phase);
+    if (this.participantManager.shouldShowResults() && !this.resultsShown) {
+      this.showResultsIfNeeded();
+    }
 
     if (phase === 'countdown') {
-      this.player.resetToSpawn();
+      this.participantManager.getParticipants().forEach((p) => {
+        p.car.resetToPose(p.spawn.x, p.spawn.y, p.spawn.rotation);
+      });
       this.cameraController.resetFollow();
       return;
     }
 
-    if (phase === 'finished') {
-      this.player.coastToStop(delta);
+    if (phase === 'finished' || phase === 'post_player_finish') {
       this.cameraController.update();
       return;
     }
 
     if (phase === 'racing') {
-      const input = this.touchControls.getInput();
-      this.player.update(delta, input);
       this.cameraController.update();
     }
   }
 
   shutdown(): void {
-    this.finishDelayTimer?.remove();
+    this.resultsDelayTimer?.remove();
     this.countdown?.cancel();
+    this.carColliders.forEach((c) => c.destroy());
+    this.carColliders = [];
     if (this.visibilityHandler) {
       document.removeEventListener('visibilitychange', this.visibilityHandler);
       this.visibilityHandler = undefined;
@@ -193,16 +212,17 @@ export class RaceScene extends Phaser.Scene {
     this.mainMenuButton?.destroy();
     this.pauseOverlay?.destroy();
     this.debugText?.destroy();
+    this.debugGraphics?.destroy();
     this.resultsPanel?.destroy();
     this.messages?.destroy();
     this.raceHud?.destroy();
     this.countdown?.destroy();
     this.checkpointSystem?.destroy();
     this.touchControls?.destroy();
-    this.player?.destroy();
+    this.participantManager?.destroy();
     this.trackRenderer?.destroy();
     this.cameraController = undefined;
-    this.raceManager = undefined;
+    this.participantManager = undefined;
   }
 
   private setupInput(): void {
@@ -212,18 +232,15 @@ export class RaceScene extends Phaser.Scene {
 
   private setupVisibilityHandler(): void {
     this.visibilityHandler = () => {
-      if (document.hidden) {
-        const phase = this.raceManager?.getProgress().phase;
-        if (phase === 'racing' || phase === 'countdown') {
-          this.touchControls?.clearInput();
-          if (phase === 'racing') {
-            this.setPaused(true);
-          } else {
-            this.countdown?.cancel();
-            this.lockDriving();
-            this.startCountdown();
-          }
-        }
+      if (!document.hidden) return;
+      const phase = this.participantManager?.getPhase();
+      if (phase === 'racing' || phase === 'post_player_finish') {
+        this.touchControls?.clearInput();
+        this.setPaused(true);
+      } else if (phase === 'countdown') {
+        this.countdown?.cancel();
+        this.participantManager?.lockAllDriving();
+        this.startCountdown();
       }
     };
     document.addEventListener('visibilitychange', this.visibilityHandler);
@@ -232,47 +249,55 @@ export class RaceScene extends Phaser.Scene {
   private startCountdown(): void {
     this.countdown?.start({
       onStep: () => {
-        this.lockDriving();
+        this.participantManager?.lockAllDriving();
       },
       onGo: () => {
-        this.unlockDriving();
-        this.raceManager?.onGo();
+        this.participantManager?.onGo();
       },
-      onComplete: () => {
-        // Countdown display handles GO visibility
-      },
+      onComplete: () => undefined,
     });
   }
 
-  private onCheckpointEnter(index: number): void {
-    const event = this.raceManager?.handleCheckpointEnter(index);
+  private onCheckpointEnter(racerId: RacerId, index: number): void {
+    const event = this.participantManager?.handleCheckpointEnter(racerId, index);
     if (!event) return;
 
-    if (event.type === 'missed_checkpoint' && this.raceManager?.consumeMissedMessage()) {
-      this.messages?.show('checkpoint_missed');
-    } else if (event.type === 'race_completed') {
-      this.onRaceFinished();
+    if (event.type === 'missed_checkpoint' && racerId === 'player') {
+      if (this.participantManager?.consumePlayerMissedMessage()) {
+        this.messages?.show('checkpoint_missed');
+      }
+    }
+
+    if (event.type === 'racer_finished' && racerId === 'player') {
+      this.onPlayerFinished();
     }
   }
 
-  private onRaceFinished(): void {
-    this.lockDriving();
+  private onPlayerFinished(): void {
+    this.touchControls?.setEnabled(false);
+    this.touchControls?.setDimmed(true);
     this.messages?.show('finish');
-    this.touchControls?.setVisible(false);
     this.pauseButton?.container.setVisible(false);
+  }
 
-    const progress = this.raceManager!.getProgress();
-    const state = GameState.getState();
+  private showResultsIfNeeded(): void {
+    if (!this.participantManager || this.resultsShown) return;
+    const results = this.participantManager.getResults();
+    if (results.length < RACER_COUNT) return;
 
-    this.finishDelayTimer?.remove();
-    this.finishDelayTimer = this.time.delayedCall(1200, () => {
+    this.resultsShown = true;
+    this.resultsDelayTimer?.remove();
+    const phase = this.participantManager.getPhase();
+    const delay = phase === 'post_player_finish' ? 800 : 1200;
+
+    this.resultsDelayTimer = this.time.delayedCall(delay, () => {
+      const state = GameState.getState();
       this.resultsPanel?.show({
         trackName: getTrackDisplayName(state.selectedTrack),
-        racerName: getCharacterDisplayName(state.selectedCharacter),
-        carName: getCarById(state.selectedCar!).name,
-        finalTimeMs: progress.finalTimeMs ?? progress.elapsedTimeMs,
-        totalLaps: progress.totalLaps,
+        results,
       });
+      this.touchControls?.setVisible(false);
+      this.pauseButton?.container.setVisible(false);
     });
   }
 
@@ -284,53 +309,142 @@ export class RaceScene extends Phaser.Scene {
     }
   }
 
-  private updateHud(
-    phase: RacePhase,
-    currentLap: number,
-    totalLaps: number,
-    elapsedMs: number,
-  ): void {
-    const showHud = phase === 'racing' || phase === 'paused' || phase === 'finished';
-    this.raceHud?.update(currentLap, totalLaps, elapsedMs, showHud);
-    const dimmed = phase === 'paused' || phase === 'countdown' || phase === 'finished';
+  private updateHud(phase: RacePhase, player: { racerProgress: { currentLap: number; totalLaps: number } }, playerFinished: boolean): void {
+    const showHud =
+      phase === 'racing' || phase === 'paused' || phase === 'post_player_finish' || phase === 'finished';
+    const elapsed = this.participantManager?.getElapsedMs() ?? 0;
+    const position = this.participantManager?.getPlayerPosition() ?? 1;
+
+    this.raceHud?.update(
+      player.racerProgress.currentLap,
+      player.racerProgress.totalLaps,
+      elapsed,
+      position,
+      RACER_COUNT,
+      showHud,
+    );
+
+    const dimmed =
+      phase === 'paused' || phase === 'countdown' || phase === 'finished' || playerFinished;
     this.raceHud?.setDimmed(dimmed);
   }
 
   private updateDebug(phase: RacePhase): void {
-    if (!this.debugEnabled || !this.debugText || !this.raceManager || !this.player) return;
+    if (!this.debugEnabled || !this.debugText || !this.participantManager) return;
 
-    const progress = this.raceManager.getProgress();
-    const cp = this.raceManager.getCheckpointProgress();
+    const player = this.participantManager.getPlayerParticipant();
     const fps = Math.round(this.game.loop.actualFps);
-    const speed = Math.round(this.player.getSpeed());
+    const lines = [
+      `Phase: ${phase}`,
+      `Position: ${this.participantManager.getPlayerPosition()}/4`,
+      `Lap: ${player.racerProgress.currentLap}/${player.racerProgress.totalLaps}`,
+      `Expected CP: ${player.checkpointProgress.nextCheckpointIndex}`,
+      `Time: ${this.participantManager.getElapsedMs().toFixed(0)}ms`,
+      `Speed: ${Math.round(player.car.getSpeed())}`,
+      `FPS: ${fps}`,
+    ];
 
-    this.debugText.setText(
-      [
-        `Phase: ${phase}`,
-        `Lap: ${progress.currentLap}/${progress.totalLaps}`,
-        `Expected CP: ${cp.nextCheckpointIndex}`,
-        `Time: ${progress.elapsedTimeMs.toFixed(0)}ms`,
-        `Speed: ${speed}`,
-        `FPS: ${fps}`,
-        'Debug: ON',
-      ].join('\n'),
-    );
+    this.participantManager.getParticipants().forEach((p) => {
+      if (p.kind === 'ai' && p.aiState) {
+        lines.push(
+          `${p.displayName}: lap ${p.racerProgress.currentLap} cp ${p.checkpointProgress.nextCheckpointIndex} spd ${Math.round(p.car.getSpeed())} rb ${p.aiState.rubberBandMultiplier.toFixed(2)}`,
+        );
+      }
+    });
+
+    lines.push('Debug: ON');
+    this.debugText.setText(lines.join('\n'));
     this.checkpointSystem?.setDebugVisible(true);
+    this.drawDebugPath();
   }
 
-  private lockDriving(): void {
-    this.player?.setInputEnabled(false);
-    this.player?.stop();
+  private drawDebugPath(): void {
+    const raceData = getMangoMeadowsRaceData();
+    if (!this.debugGraphics) {
+      this.debugGraphics = this.add.graphics().setDepth(4);
+    }
+    this.debugGraphics.clear();
+    this.debugGraphics.lineStyle(2, 0xff00ff, 0.5);
+    const path = raceData.aiPath;
+    for (let i = 0; i < path.length; i += 1) {
+      const a = path[i];
+      const b = path[(i + 1) % path.length];
+      this.debugGraphics.lineBetween(a.x, a.y, b.x, b.y);
+    }
+    path.forEach((p) => {
+      this.debugGraphics!.fillStyle(0xff00ff, 0.6);
+      this.debugGraphics!.fillCircle(p.x, p.y, 4);
+    });
+  }
+
+  private toggleDebug(): void {
+    this.debugEnabled = !this.debugEnabled;
+    this.debugText?.setVisible(this.debugEnabled);
+    if (!this.debugEnabled) {
+      this.checkpointSystem?.setDebugVisible(false);
+      this.debugGraphics?.clear();
+    }
+  }
+
+  private setPaused(value: boolean): void {
+    const phase = this.participantManager?.getPhase();
+    if (phase === 'countdown' || phase === 'finished') return;
+
+    if (value) {
+      this.participantManager?.pause();
+      this.touchControls?.clearInput();
+      this.touchControls?.setEnabled(false);
+      this.checkpointSystem?.setEnabled(false);
+      this.pauseOverlay?.setVisible(true);
+      this.pauseButton?.container.setVisible(false);
+      this.physics.pause();
+    } else {
+      this.participantManager?.resume();
+      if (!this.participantManager?.getPlayerParticipant().racerProgress.finished) {
+        this.touchControls?.setEnabled(true);
+      }
+      this.checkpointSystem?.setEnabled(true);
+      this.pauseOverlay?.setVisible(false);
+      this.pauseButton?.container.setVisible(true);
+      this.physics.resume();
+    }
+  }
+
+  private restartRace(): void {
+    this.resultsDelayTimer?.remove();
+    this.countdown?.cancel();
+    this.messages?.reset();
+    this.resultsPanel?.hide();
+    this.pauseOverlay?.setVisible(false);
+    this.pauseButton?.container.setVisible(true);
+    this.touchControls?.setVisible(true);
     this.touchControls?.setEnabled(false);
     this.touchControls?.setDimmed(true);
-    this.pauseButton?.setEnabled(false);
+    this.physics.resume();
+
+    this.resultsShown = false;
+    this.participantManager?.reset(this.totalLaps);
+    this.participantManager?.beginCountdown();
+    this.checkpointSystem?.reset();
+    this.raceHud?.reset();
+
+    this.participantManager?.getParticipants().forEach((p) => {
+      p.car.resetToPose(p.spawn.x, p.spawn.y, p.spawn.rotation);
+      if (p.kind === 'ai') {
+        (p.car as AiRacer).setCollisionEnabled(true);
+      }
+    });
+    this.cameraController?.resetFollow();
+
+    this.participantManager?.lockAllDriving();
+    this.startCountdown();
   }
 
-  private unlockDriving(): void {
-    this.player?.setInputEnabled(true);
-    this.touchControls?.setEnabled(true);
-    this.touchControls?.setDimmed(false);
-    this.pauseButton?.setEnabled(true);
+  private goMainMenu(): void {
+    if (this.isTransitioning.value) return;
+    this.countdown?.cancel();
+    this.touchControls?.clearInput();
+    fadeToScene(this, SCENE_KEYS.MAIN_MENU, this.isTransitioning);
   }
 
   private createPauseUi(): void {
@@ -401,9 +515,9 @@ export class RaceScene extends Phaser.Scene {
 
   private createDebugHud(): void {
     this.debugText = this.add
-      .text(HUD_INSETS.LEFT, HUD_INSETS.TOP + 56, '', {
+      .text(HUD_INSETS.LEFT, HUD_INSETS.TOP + 72, '', {
         fontFamily: FONTS.PRIMARY,
-        fontSize: '16px',
+        fontSize: '14px',
         color: '#ffffff',
         backgroundColor: '#00000088',
         padding: { x: 8, y: 6 },
@@ -411,64 +525,5 @@ export class RaceScene extends Phaser.Scene {
       .setScrollFactor(0)
       .setDepth(1500)
       .setVisible(false);
-  }
-
-  private toggleDebug(): void {
-    this.debugEnabled = !this.debugEnabled;
-    this.debugText?.setVisible(this.debugEnabled);
-    if (!this.debugEnabled) {
-      this.checkpointSystem?.setDebugVisible(false);
-    }
-  }
-
-  private setPaused(value: boolean): void {
-    const phase = this.raceManager?.getProgress().phase;
-    if (phase === 'countdown' || phase === 'finished') return;
-
-    if (value) {
-      this.raceManager?.pause();
-      this.touchControls?.clearInput();
-      this.touchControls?.setEnabled(false);
-      this.checkpointSystem?.setEnabled(false);
-      this.pauseOverlay?.setVisible(true);
-      this.pauseButton?.container.setVisible(false);
-      this.physics.pause();
-    } else {
-      this.raceManager?.resume();
-      this.touchControls?.setEnabled(true);
-      this.checkpointSystem?.setEnabled(true);
-      this.pauseOverlay?.setVisible(false);
-      this.pauseButton?.container.setVisible(true);
-      this.physics.resume();
-    }
-  }
-
-  private restartRace(): void {
-    this.finishDelayTimer?.remove();
-    this.countdown?.cancel();
-    this.messages?.reset();
-    this.resultsPanel?.hide();
-    this.pauseOverlay?.setVisible(false);
-    this.pauseButton?.container.setVisible(true);
-    this.touchControls?.setVisible(true);
-    this.physics.resume();
-
-    this.raceManager?.reset(this.totalLaps);
-    this.raceManager?.beginCountdown();
-    this.checkpointSystem?.reset();
-    this.raceHud?.reset();
-
-    this.player?.resetToSpawn();
-    this.cameraController?.resetFollow();
-
-    this.lockDriving();
-    this.startCountdown();
-  }
-
-  private goMainMenu(): void {
-    if (this.isTransitioning.value) return;
-    this.countdown?.cancel();
-    this.touchControls?.clearInput();
-    fadeToScene(this, SCENE_KEYS.MAIN_MENU, this.isTransitioning);
   }
 }
