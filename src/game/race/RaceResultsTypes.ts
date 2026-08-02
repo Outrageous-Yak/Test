@@ -1,4 +1,5 @@
 import type { RacerId } from './raceTypes';
+import type { TrackId } from '../state/gameStateTypes';
 
 export interface RacerResult {
   racerId: RacerId;
@@ -9,7 +10,17 @@ export interface RacerResult {
   isPlayer: boolean;
 }
 
+export interface RaceCareerSummary {
+  playerPosition: number;
+  finishTimeMs: number | null;
+  bestTimeMs: number | null;
+  coinsEarned: number;
+  isNewRecord: boolean;
+  trackUnlocked: TrackId | null;
+}
+
 export interface RaceResultsPayload {
   trackName: string;
   results: readonly RacerResult[];
+  career?: RaceCareerSummary;
 }

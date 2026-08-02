@@ -242,3 +242,70 @@ describe('track selection persistence', () => {
     expect(state.unlockedTracks).toEqual(['mango-meadows']);
   });
 });
+
+describe('career persistence', () => {
+  beforeEach(() => {
+    localStorage.clear();
+  });
+
+  it('merges missing career fields from defaults', () => {
+    const state = SaveSystem.load();
+    expect(state.bestTimes).toEqual({});
+    expect(state.completedTracks).toEqual([]);
+    expect(state.careerStatistics.racesStarted).toBe(0);
+  });
+
+  it('keeps Phase 7 saves compatible when career fields are absent', () => {
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({
+        coins: 15,
+        unlockedTracks: ['mango-meadows', 'ruby-coast'],
+        selectedTrack: 'mango-meadows',
+      }),
+    );
+
+    const state = SaveSystem.load();
+    expect(state.coins).toBe(15);
+    expect(state.unlockedTracks).toEqual(['mango-meadows', 'ruby-coast']);
+    expect(state.bestTimes).toEqual({});
+    expect(state.completedTracks).toEqual([]);
+    expect(state.careerStatistics.totalCoinsEarned).toBe(0);
+  });
+
+  it('persists career fields across reload', () => {
+    const custom = mergeWithDefaults({
+      coins: 160,
+      bestTimes: { 'mango-meadows': 65432 },
+      completedTracks: ['mango-meadows'],
+      careerStatistics: {
+        racesStarted: 3,
+        racesFinished: 2,
+        wins: 1,
+        podiums: 2,
+        fastestLapMs: 21000,
+        totalRaceTimeMs: 150000,
+        totalCoinsEarned: 160,
+      },
+    });
+
+    SaveSystem.save(custom);
+    const loaded = SaveSystem.load();
+
+    expect(loaded.coins).toBe(160);
+    expect(loaded.bestTimes['mango-meadows']).toBe(65432);
+    expect(loaded.completedTracks).toEqual(['mango-meadows']);
+    expect(loaded.careerStatistics.wins).toBe(1);
+    expect(loaded.careerStatistics.fastestLapMs).toBe(21000);
+  });
+
+  it('filters invalid best times and completed tracks', () => {
+    const state = mergeWithDefaults({
+      bestTimes: { 'mango-meadows': 50000, 'fake-track': 1000 },
+      completedTracks: ['mango-meadows', 'fake-track'],
+    });
+
+    expect(state.bestTimes).toEqual({ 'mango-meadows': 50000 });
+    expect(state.completedTracks).toEqual(['mango-meadows']);
+  });
+});

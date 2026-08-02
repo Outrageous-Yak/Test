@@ -1,16 +1,20 @@
 import Phaser from 'phaser';
 import { FONTS } from '../constants';
+import { formatRaceTime } from '../race/formatRaceTime';
 import {
   getDifficultyLabel,
   getDifficultyMarkers,
   type TrackDefinition,
 } from '../data/tracks';
 
+export type TrackCardStatus = 'locked' | 'unlocked' | 'complete';
+
 export interface TrackCardOptions {
   x: number;
   y: number;
   track: TrackDefinition;
-  locked?: boolean;
+  status?: TrackCardStatus;
+  bestTimeMs?: number | null;
   selected?: boolean;
   width?: number;
   height?: number;
@@ -20,7 +24,7 @@ export interface TrackCardOptions {
 export interface TrackCardHandle {
   container: Phaser.GameObjects.Container;
   setSelected: (selected: boolean) => void;
-  setLocked: (locked: boolean) => void;
+  setStatus: (status: TrackCardStatus, bestTimeMs?: number | null) => void;
   getTrackId: () => TrackDefinition['id'];
   destroy: () => void;
 }
@@ -76,6 +80,28 @@ function createTrackPreview(
   }
 }
 
+function getStatusLabel(status: TrackCardStatus): string {
+  switch (status) {
+    case 'locked':
+      return 'LOCKED';
+    case 'unlocked':
+      return 'UNLOCKED';
+    case 'complete':
+      return '✓ COMPLETE';
+  }
+}
+
+function getStatusColor(status: TrackCardStatus): string {
+  switch (status) {
+    case 'locked':
+      return '#ffaaaa';
+    case 'unlocked':
+      return '#aaffaa';
+    case 'complete':
+      return '#ffd700';
+  }
+}
+
 /**
  * Reusable track selection card.
  * Reports selection via callback — does not mutate GameState directly.
@@ -85,7 +111,8 @@ export function createTrackCard(scene: Phaser.Scene, options: TrackCardOptions):
     x,
     y,
     track,
-    locked = false,
+    status: initialStatus = 'unlocked',
+    bestTimeMs: initialBestTime = null,
     selected = false,
     width = CARD_WIDTH,
     height = CARD_HEIGHT,
@@ -95,10 +122,10 @@ export function createTrackCard(scene: Phaser.Scene, options: TrackCardOptions):
   const container = scene.add.container(x, y);
 
   const background = scene.add
-    .rectangle(0, 0, width, height, track.primaryColor, locked ? 0.3 : 0.85)
+    .rectangle(0, 0, width, height, track.primaryColor, initialStatus === 'locked' ? 0.3 : 0.85)
     .setStrokeStyle(3, track.accentColor, 0.6);
 
-  const previewContainer = createTrackPreview(scene, track, locked);
+  const previewContainer = createTrackPreview(scene, track, initialStatus === 'locked');
 
   const labelText = scene.add
     .text(0, -height * 0.28, track.previewLabel, {
@@ -121,7 +148,7 @@ export function createTrackCard(scene: Phaser.Scene, options: TrackCardOptions):
     .setOrigin(0.5);
 
   const difficultyText = scene.add
-    .text(0, height * 0.14, getDifficultyLabel(track.difficulty), {
+    .text(0, height * 0.12, getDifficultyLabel(track.difficulty), {
       fontFamily: FONTS.PRIMARY,
       fontSize: '16px',
       color: '#ffffff',
@@ -130,24 +157,33 @@ export function createTrackCard(scene: Phaser.Scene, options: TrackCardOptions):
     .setOrigin(0.5);
 
   const difficultyMarkers = scene.add
-    .text(0, height * 0.2, getDifficultyMarkers(track.difficulty), {
+    .text(0, height * 0.18, getDifficultyMarkers(track.difficulty), {
       fontFamily: FONTS.PRIMARY,
       fontSize: '14px',
       color: '#fff5e6',
     })
     .setOrigin(0.5);
 
-  const statusText = scene.add
-    .text(0, height * 0.3, locked ? 'LOCKED' : 'UNLOCKED', {
+  const bestTimeText = scene.add
+    .text(0, height * 0.24, '', {
       fontFamily: FONTS.PRIMARY,
       fontSize: '14px',
-      color: locked ? '#ffaaaa' : '#aaffaa',
+      color: '#e0e0e0',
+      fontStyle: 'bold',
+    })
+    .setOrigin(0.5);
+
+  const statusText = scene.add
+    .text(0, height * 0.3, getStatusLabel(initialStatus), {
+      fontFamily: FONTS.PRIMARY,
+      fontSize: '14px',
+      color: getStatusColor(initialStatus),
       fontStyle: 'bold',
     })
     .setOrigin(0.5);
 
   const lockHint = scene.add
-    .text(0, height * 0.4, locked ? track.unlockHint : track.subtitle, {
+    .text(0, height * 0.4, initialStatus === 'locked' ? track.unlockHint : track.subtitle, {
       fontFamily: FONTS.PRIMARY,
       fontSize: '13px',
       color: '#f0f0f0',
@@ -162,7 +198,7 @@ export function createTrackCard(scene: Phaser.Scene, options: TrackCardOptions):
       fontSize: '28px',
     })
     .setOrigin(0.5)
-    .setVisible(locked);
+    .setVisible(initialStatus === 'locked');
 
   const selectionRing = scene.add
     .rectangle(0, 0, width + 10, height + 10)
@@ -179,18 +215,34 @@ export function createTrackCard(scene: Phaser.Scene, options: TrackCardOptions):
     nameText,
     difficultyText,
     difficultyMarkers,
+    bestTimeText,
     statusText,
     lockHint,
   ]);
 
-  let isLocked = locked;
+  let cardStatus = initialStatus;
   let isSelected = selected;
   let isPressed = false;
 
+  const updateBestTimeDisplay = (bestTime: number | null): void => {
+    if (cardStatus === 'locked') {
+      bestTimeText.setText('');
+      return;
+    }
+    if (bestTime !== null && bestTime > 0) {
+      bestTimeText.setText(`Best: ${formatRaceTime(bestTime)}`);
+    } else {
+      bestTimeText.setText('Best: —');
+    }
+  };
+
+  updateBestTimeDisplay(initialBestTime);
+
   const applySelectedVisual = (): void => {
-    selectionRing.setVisible(isSelected && !isLocked);
+    const locked = cardStatus === 'locked';
+    selectionRing.setVisible(isSelected && !locked);
     background.setStrokeStyle(3, track.accentColor, isSelected ? 1 : 0.6);
-    container.setScale(isSelected && !isLocked ? 1.03 : 1);
+    container.setScale(isSelected && !locked ? 1.03 : 1);
   };
 
   const setSelected = (value: boolean): void => {
@@ -198,14 +250,18 @@ export function createTrackCard(scene: Phaser.Scene, options: TrackCardOptions):
     applySelectedVisual();
   };
 
-  const setLocked = (value: boolean): void => {
-    isLocked = value;
-    background.setAlpha(value ? 0.3 : 0.85);
-    lockIcon.setVisible(value);
-    statusText.setText(value ? 'LOCKED' : 'UNLOCKED');
-    statusText.setColor(value ? '#ffaaaa' : '#aaffaa');
-    lockHint.setText(value ? track.unlockHint : track.subtitle);
-    if (value) {
+  const setStatus = (status: TrackCardStatus, bestTimeMs: number | null = null): void => {
+    cardStatus = status;
+    const locked = status === 'locked';
+    background.setAlpha(locked ? 0.3 : 0.85);
+    lockIcon.setVisible(locked);
+    statusText.setText(getStatusLabel(status));
+    statusText.setColor(getStatusColor(status));
+    lockHint.setText(locked ? track.unlockHint : track.subtitle);
+    updateBestTimeDisplay(bestTimeMs);
+    previewContainer.setAlpha(locked ? 0.35 : 1);
+
+    if (locked) {
       background.disableInteractive();
       setSelected(false);
     } else {
@@ -215,30 +271,30 @@ export function createTrackCard(scene: Phaser.Scene, options: TrackCardOptions):
   };
 
   const onPointerOver = (): void => {
-    if (isLocked) return;
+    if (cardStatus === 'locked') return;
     background.setAlpha(1);
   };
 
   const onPointerOut = (): void => {
-    if (isLocked) return;
+    if (cardStatus === 'locked') return;
     isPressed = false;
     background.setAlpha(0.85);
   };
 
   const onPointerDown = (): void => {
-    if (isLocked) return;
+    if (cardStatus === 'locked') return;
     isPressed = true;
     container.setScale(0.98);
   };
 
   const onPointerUp = (): void => {
-    if (isLocked || !isPressed) return;
+    if (cardStatus === 'locked' || !isPressed) return;
     isPressed = false;
     container.setScale(isSelected ? 1.03 : 1);
     onSelect(track.id);
   };
 
-  if (!locked) {
+  if (initialStatus !== 'locked') {
     background.setInteractive({ useHandCursor: true });
     background.on('pointerover', onPointerOver);
     background.on('pointerout', onPointerOut);
@@ -251,7 +307,7 @@ export function createTrackCard(scene: Phaser.Scene, options: TrackCardOptions):
   return {
     container,
     setSelected,
-    setLocked,
+    setStatus,
     getTrackId: () => track.id,
     destroy: () => {
       background.off('pointerover', onPointerOver);

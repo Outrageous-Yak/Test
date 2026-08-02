@@ -252,6 +252,7 @@ export class RaceScene extends Phaser.Scene {
         this.participantManager?.lockAllDriving();
       },
       onGo: () => {
+        GameState.recordRaceStarted();
         this.participantManager?.onGo();
       },
       onComplete: () => undefined,
@@ -292,9 +293,32 @@ export class RaceScene extends Phaser.Scene {
 
     this.resultsDelayTimer = this.time.delayedCall(delay, () => {
       const state = GameState.getState();
+      const playerResult = results.find((r) => r.isPlayer);
+      let career;
+
+      if (playerResult && state.selectedTrack) {
+        const outcome = GameState.recordRaceResult({
+          trackId: state.selectedTrack,
+          playerPosition: playerResult.position,
+          finishTimeMs: playerResult.finishTimeMs,
+          fastestLapMs: this.participantManager?.getPlayerFastestLapMs() ?? null,
+          didFinish: playerResult.status === 'finished',
+        });
+
+        career = {
+          playerPosition: playerResult.position,
+          finishTimeMs: playerResult.finishTimeMs,
+          bestTimeMs: outcome.bestTimeMs,
+          coinsEarned: outcome.coinsEarned,
+          isNewRecord: outcome.isNewRecord,
+          trackUnlocked: outcome.trackUnlocked,
+        };
+      }
+
       this.resultsPanel?.show({
         trackName: getTrackDisplayName(state.selectedTrack),
         results,
+        career,
       });
       this.touchControls?.setVisible(false);
       this.pauseButton?.container.setVisible(false);

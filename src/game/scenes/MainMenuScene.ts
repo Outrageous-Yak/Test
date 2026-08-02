@@ -12,6 +12,10 @@ export class MainMenuScene extends Phaser.Scene {
   private menuButtons: TouchButtonHandle[] = [];
   private panels: MenuPanel[] = [];
   private settingsToggleButtons: TouchButtonHandle[] = [];
+  private resetCareerButton?: TouchButtonHandle;
+  private resetConfirmYesButton?: TouchButtonHandle;
+  private resetConfirmNoButton?: TouchButtonHandle;
+  private resetConfirmText?: Phaser.GameObjects.Text;
   private isTransitioning = false;
   private keyboardEnabled = true;
 
@@ -36,6 +40,10 @@ export class MainMenuScene extends Phaser.Scene {
   shutdown(): void {
     this.menuButtons.forEach((btn) => btn.destroy());
     this.settingsToggleButtons.forEach((btn) => btn.destroy());
+    this.resetCareerButton?.destroy();
+    this.resetConfirmYesButton?.destroy();
+    this.resetConfirmNoButton?.destroy();
+    this.resetConfirmText?.destroy();
     this.panels.forEach((panel) => panel.destroy());
     this.input.keyboard?.off('keydown-ENTER', this.onEnterKey, this);
   }
@@ -64,8 +72,8 @@ export class MainMenuScene extends Phaser.Scene {
 
   private createMenuButtons(): void {
     const { width, height } = this.cameras.main;
-    const labels = ['PLAY', 'GARAGE', 'HOW TO PLAY', 'SETTINGS', 'CREDITS'];
-    const startY = height * 0.34;
+    const labels = ['PLAY', 'GARAGE', 'CAREER', 'HOW TO PLAY', 'SETTINGS', 'CREDITS'];
+    const startY = height * 0.3;
     const gap = UI.MENU_BUTTON_HEIGHT + UI.MENU_BUTTON_GAP;
 
     labels.forEach((label, index) => {
@@ -154,8 +162,8 @@ export class MainMenuScene extends Phaser.Scene {
   private createSettingsPanel(): void {
     const panel = new MenuPanel(this, {
       title: 'SETTINGS',
-      panelHeight: 540,
-      onClose: () => this.onPanelClosed(),
+      panelHeight: 620,
+      onClose: () => this.onSettingsPanelClosed(),
     });
 
     const content = panel.getContentContainer();
@@ -223,7 +231,82 @@ export class MainMenuScene extends Phaser.Scene {
     content.add(controlToggle.container);
     this.settingsToggleButtons.push(controlToggle);
 
+    this.resetCareerButton = createTouchButton(this, {
+      x: 0,
+      y: 210,
+      label: 'Reset Career',
+      width: 280,
+      height: 48,
+      fontSize: 20,
+      onPress: () => this.beginResetCareerConfirm(),
+    });
+
+    this.resetConfirmText = this.add
+      .text(0, 170, 'Reset all career progress?\nThis cannot be undone.', {
+        fontFamily: FONTS.PRIMARY,
+        fontSize: '18px',
+        color: '#ffaaaa',
+        align: 'center',
+        lineSpacing: 6,
+      })
+      .setOrigin(0.5)
+      .setVisible(false);
+
+    this.resetConfirmYesButton = createTouchButton(this, {
+      x: -90,
+      y: 250,
+      label: 'Yes',
+      width: 140,
+      height: 44,
+      fontSize: 20,
+      onPress: () => this.confirmResetCareer(),
+    });
+
+    this.resetConfirmNoButton = createTouchButton(this, {
+      x: 90,
+      y: 250,
+      label: 'No',
+      width: 140,
+      height: 44,
+      fontSize: 20,
+      onPress: () => this.cancelResetCareerConfirm(),
+    });
+
+    this.resetConfirmYesButton.container.setVisible(false);
+    this.resetConfirmNoButton.container.setVisible(false);
+
+    content.add(this.resetCareerButton.container);
+    content.add(this.resetConfirmText);
+    content.add(this.resetConfirmYesButton.container);
+    content.add(this.resetConfirmNoButton.container);
+
     this.panels.push(panel);
+  }
+
+  private beginResetCareerConfirm(): void {
+    this.resetCareerButton?.container.setVisible(false);
+    this.resetConfirmText?.setVisible(true);
+    this.resetConfirmYesButton?.container.setVisible(true);
+    this.resetConfirmNoButton?.container.setVisible(true);
+  }
+
+  private cancelResetCareerConfirm(): void {
+    this.resetCareerButton?.container.setVisible(true);
+    this.resetConfirmText?.setVisible(false);
+    this.resetConfirmYesButton?.container.setVisible(false);
+    this.resetConfirmNoButton?.container.setVisible(false);
+  }
+
+  private confirmResetCareer(): void {
+    GameState.resetCareer();
+    this.cancelResetCareerConfirm();
+    this.panels[2]?.close();
+    this.onPanelClosed();
+  }
+
+  private onSettingsPanelClosed(): void {
+    this.cancelResetCareerConfirm();
+    this.onPanelClosed();
   }
 
   private createCreditsPanel(): void {
@@ -265,6 +348,9 @@ export class MainMenuScene extends Phaser.Scene {
       case 'GARAGE':
         this.openPanel(0);
         break;
+      case 'CAREER':
+        this.goToCareer();
+        break;
       case 'HOW TO PLAY':
         this.openPanel(1);
         break;
@@ -301,6 +387,13 @@ export class MainMenuScene extends Phaser.Scene {
     this.isTransitioning = true;
     this.setMenuButtonsEnabled(false);
     this.scene.start(SCENE_KEYS.CHARACTER_SELECT);
+  }
+
+  private goToCareer(): void {
+    if (this.isTransitioning || this.isAnyPanelOpen()) return;
+    this.isTransitioning = true;
+    this.setMenuButtonsEnabled(false);
+    this.scene.start(SCENE_KEYS.CAREER);
   }
 
   private setupKeyboardInput(): void {

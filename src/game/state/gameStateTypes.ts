@@ -1,3 +1,6 @@
+import type { CareerStatistics, BestTimes } from '../career/careerLogic';
+import { DEFAULT_CAREER_STATISTICS } from '../career/careerLogic';
+
 export type CharacterId = 'mango' | 'ruby';
 export type CarId = 'mango-car' | 'red-car';
 export type TrackId = 'mango-meadows' | 'ruby-coast' | 'volcano-rush';
@@ -19,6 +22,9 @@ export interface SerializableGameState {
   unlockedCharacters: CharacterId[];
   unlockedCars: CarId[];
   unlockedTracks: TrackId[];
+  bestTimes: BestTimes;
+  completedTracks: TrackId[];
+  careerStatistics: CareerStatistics;
   settings: GameSettings;
 }
 
@@ -30,6 +36,9 @@ export const DEFAULT_GAME_STATE: SerializableGameState = {
   unlockedCharacters: ['mango', 'ruby'],
   unlockedCars: ['mango-car', 'red-car'],
   unlockedTracks: ['mango-meadows'],
+  bestTimes: {},
+  completedTracks: [],
+  careerStatistics: { ...DEFAULT_CAREER_STATISTICS },
   settings: {
     musicEnabled: true,
     soundEnabled: true,

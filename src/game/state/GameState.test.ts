@@ -101,3 +101,104 @@ describe('GameState track unlocking', () => {
     expect(GameState.isTrackUnlocked('ruby-coast')).toBe(true);
   });
 });
+
+describe('GameState career progression', () => {
+  beforeEach(() => {
+    GameState.reset();
+  });
+
+  it('records race start statistics', () => {
+    GameState.recordRaceStarted();
+    expect(GameState.getCareerStatistics().racesStarted).toBe(1);
+  });
+
+  it('awards coins and unlocks Ruby Coast on win', () => {
+    const outcome = GameState.recordRaceResult({
+      trackId: 'mango-meadows',
+      playerPosition: 1,
+      finishTimeMs: 75_000,
+      fastestLapMs: 24_000,
+      didFinish: true,
+    });
+
+    expect(outcome.coinsEarned).toBe(100);
+    expect(GameState.getCoins()).toBe(100);
+    expect(GameState.isTrackUnlocked('ruby-coast')).toBe(true);
+    expect(GameState.isTrackCompleted('mango-meadows')).toBe(true);
+    expect(GameState.getBestTime('mango-meadows')).toBe(75_000);
+    expect(outcome.isNewRecord).toBe(true);
+  });
+
+  it('does not unlock Ruby Coast on second place', () => {
+    const outcome = GameState.recordRaceResult({
+      trackId: 'mango-meadows',
+      playerPosition: 2,
+      finishTimeMs: 80_000,
+      fastestLapMs: null,
+      didFinish: true,
+    });
+
+    expect(outcome.coinsEarned).toBe(60);
+    expect(GameState.isTrackUnlocked('ruby-coast')).toBe(false);
+    expect(GameState.isTrackCompleted('mango-meadows')).toBe(false);
+  });
+
+  it('keeps faster best time when finishing slower', () => {
+    GameState.recordRaceResult({
+      trackId: 'mango-meadows',
+      playerPosition: 1,
+      finishTimeMs: 70_000,
+      fastestLapMs: null,
+      didFinish: true,
+    });
+
+    const outcome = GameState.recordRaceResult({
+      trackId: 'mango-meadows',
+      playerPosition: 1,
+      finishTimeMs: 90_000,
+      fastestLapMs: null,
+      didFinish: true,
+    });
+
+    expect(outcome.isNewRecord).toBe(false);
+    expect(GameState.getBestTime('mango-meadows')).toBe(70_000);
+  });
+
+  it('persists career data across reload', () => {
+    GameState.recordRaceResult({
+      trackId: 'mango-meadows',
+      playerPosition: 1,
+      finishTimeMs: 70_000,
+      fastestLapMs: 22_000,
+      didFinish: true,
+    });
+
+    GameState.reloadFromStorage();
+    expect(GameState.getCoins()).toBe(100);
+    expect(GameState.isTrackUnlocked('ruby-coast')).toBe(true);
+    expect(GameState.getBestTime('mango-meadows')).toBe(70_000);
+  });
+
+  it('resetCareer clears progression but keeps settings', () => {
+    GameState.setSelectedCharacter('mango');
+    GameState.updateSettings({ musicEnabled: false, controlStyle: 'tilt' });
+    GameState.setSelectedTrack('mango-meadows');
+    GameState.recordRaceResult({
+      trackId: 'mango-meadows',
+      playerPosition: 1,
+      finishTimeMs: 70_000,
+      fastestLapMs: null,
+      didFinish: true,
+    });
+
+    GameState.resetCareer();
+
+    expect(GameState.getCoins()).toBe(0);
+    expect(GameState.isTrackUnlocked('ruby-coast')).toBe(false);
+    expect(GameState.getBestTime('mango-meadows')).toBeNull();
+    expect(GameState.getCareerStatistics().wins).toBe(0);
+    expect(GameState.settings.musicEnabled).toBe(false);
+    expect(GameState.settings.controlStyle).toBe('tilt');
+    expect(GameState.getState().selectedCharacter).toBe('mango');
+  });
+});

@@ -75,6 +75,8 @@ export class RaceParticipantManager {
   private resultsResolved = false;
   private positionUpdateAccumulator = 0;
   private playerPosition = 1;
+  private playerLapStartMs = 0;
+  private playerFastestLapMs: number | null = null;
   private readonly positions = new Map<RacerId, number>();
   private readonly results: RacerResult[] = [];
   private readonly totalLaps: number;
@@ -139,6 +141,10 @@ export class RaceParticipantManager {
     return this.playerPosition;
   }
 
+  getPlayerFastestLapMs(): number | null {
+    return this.playerFastestLapMs;
+  }
+
   getPlayerParticipant(): RaceParticipant {
     return this.participants[0];
   }
@@ -163,6 +169,8 @@ export class RaceParticipantManager {
   onGo(): void {
     this.phase = 'racing';
     this.timer.start();
+    this.playerLapStartMs = 0;
+    this.playerFastestLapMs = null;
     this.unlockAllDriving();
   }
 
@@ -187,6 +195,8 @@ export class RaceParticipantManager {
     this.resultsResolved = false;
     this.positionUpdateAccumulator = 0;
     this.playerPosition = 1;
+    this.playerLapStartMs = 0;
+    this.playerFastestLapMs = null;
     this.positions.clear();
     this.results.length = 0;
 
@@ -311,7 +321,14 @@ export class RaceParticipantManager {
     }
 
     if (result.event.type === 'racer_finished') {
+      if (racerId === 'player') {
+        this.recordPlayerLapTime(this.timer.getElapsedMs());
+      }
       this.onRacerFinished(participant);
+    }
+
+    if (result.event.type === 'lap_completed' && racerId === 'player') {
+      this.recordPlayerLapTime(this.timer.getElapsedMs());
     }
 
     return result.event;
@@ -328,6 +345,14 @@ export class RaceParticipantManager {
     if (!player.missedMessagePending) return false;
     player.missedMessagePending = false;
     return true;
+  }
+
+  private recordPlayerLapTime(elapsedMs: number): void {
+    const lapTime = elapsedMs - this.playerLapStartMs;
+    this.playerLapStartMs = elapsedMs;
+    if (lapTime > 0 && (this.playerFastestLapMs === null || lapTime < this.playerFastestLapMs)) {
+      this.playerFastestLapMs = lapTime;
+    }
   }
 
   private createParticipant(

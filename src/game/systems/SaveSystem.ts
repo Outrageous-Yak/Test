@@ -2,10 +2,16 @@ import {
   DEFAULT_GAME_STATE,
   type GameSettings,
   type SerializableGameState,
+  type TrackId,
 } from '../state/gameStateTypes';
+import {
+  DEFAULT_CAREER_STATISTICS,
+  type BestTimes,
+  type CareerStatistics,
+} from '../career/careerLogic';
 import { parseCharacterId, filterUnlockedCharacterIds } from '../data/characters';
 import { parseCarId, filterUnlockedCarIds } from '../data/cars';
-import { parseTrackId, filterUnlockedTrackIds } from '../data/tracks';
+import { isValidTrackId, parseTrackId, filterUnlockedTrackIds } from '../data/tracks';
 
 export const STORAGE_KEY = 'mango-ruby-racing-save-v1';
 
@@ -34,6 +40,47 @@ function parseSettings(raw: unknown): Partial<GameSettings> {
   }
 
   return partial;
+}
+
+function parseBestTimes(raw: unknown): BestTimes {
+  if (!isPlainObject(raw)) return {};
+
+  const result: BestTimes = {};
+  for (const [key, value] of Object.entries(raw)) {
+    if (isValidTrackId(key) && typeof value === 'number' && value > 0) {
+      result[key] = value;
+    }
+  }
+  return result;
+}
+
+function parseCompletedTracks(raw: unknown): TrackId[] {
+  if (!isStringArray(raw)) return [];
+  return raw.filter(isValidTrackId);
+}
+
+function parseCareerStatistics(raw: unknown): CareerStatistics {
+  if (!isPlainObject(raw)) return { ...DEFAULT_CAREER_STATISTICS };
+
+  const parseCount = (value: unknown): number =>
+    typeof value === 'number' && value >= 0 ? Math.floor(value) : 0;
+
+  const fastestLapMs =
+    raw.fastestLapMs === null
+      ? null
+      : typeof raw.fastestLapMs === 'number' && raw.fastestLapMs > 0
+        ? raw.fastestLapMs
+        : null;
+
+  return {
+    racesStarted: parseCount(raw.racesStarted),
+    racesFinished: parseCount(raw.racesFinished),
+    wins: parseCount(raw.wins),
+    podiums: parseCount(raw.podiums),
+    fastestLapMs,
+    totalRaceTimeMs: parseCount(raw.totalRaceTimeMs),
+    totalCoinsEarned: parseCount(raw.totalCoinsEarned),
+  };
 }
 
 /**
@@ -86,6 +133,9 @@ export function mergeWithDefaults(partial: Partial<SerializableGameState>): Seri
         ? unlockedCarsFromSave
         : [...DEFAULT_GAME_STATE.unlockedCars],
     unlockedTracks,
+    bestTimes: parseBestTimes(partial.bestTimes),
+    completedTracks: parseCompletedTracks(partial.completedTracks),
+    careerStatistics: parseCareerStatistics(partial.careerStatistics),
     settings: {
       ...DEFAULT_GAME_STATE.settings,
       ...parseSettings(partial.settings),
@@ -124,6 +174,9 @@ export const SaveSystem = {
         unlockedCharacters: [...state.unlockedCharacters],
         unlockedCars: [...state.unlockedCars],
         unlockedTracks: [...state.unlockedTracks],
+        bestTimes: { ...state.bestTimes },
+        completedTracks: [...state.completedTracks],
+        careerStatistics: { ...state.careerStatistics },
         settings: { ...state.settings },
       };
       localStorage.setItem(STORAGE_KEY, JSON.stringify(serialisable));

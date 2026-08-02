@@ -3,6 +3,13 @@ import { canSelectCharacter } from '../data/characters';
 import { canSelectCar } from '../data/cars';
 import { isValidTrackId } from '../data/tracks';
 import {
+  applyRaceCareerResult,
+  applyRaceStarted,
+  resetCareerProgress,
+  type CareerStateSlice,
+} from '../career/careerState';
+import type { RaceCareerInput, RaceCareerOutcome } from '../career/careerLogic';
+import {
   DEFAULT_GAME_STATE,
   type CharacterId,
   type CarId,
@@ -13,6 +20,7 @@ import {
 
 export type { CharacterId, CarId, TrackId, ControlStyle, GameSettings, SerializableGameState } from './gameStateTypes';
 export { DEFAULT_GAME_STATE } from './gameStateTypes';
+export type { CareerStatistics, RaceCareerOutcome } from '../career/careerLogic';
 
 /**
  * Central game-state singleton.
@@ -89,6 +97,50 @@ class GameStateManager {
     this.persist();
   }
 
+  getCoins(): number {
+    return this.state.coins;
+  }
+
+  getBestTime(trackId: TrackId): number | null {
+    return this.state.bestTimes[trackId] ?? null;
+  }
+
+  isTrackCompleted(trackId: TrackId): boolean {
+    return this.state.completedTracks.includes(trackId);
+  }
+
+  getCareerStatistics(): Readonly<SerializableGameState['careerStatistics']> {
+    return this.state.careerStatistics;
+  }
+
+  recordRaceStarted(): void {
+    const slice = this.getCareerSlice();
+    const next = applyRaceStarted(slice);
+    this.applyCareerSlice(next);
+    this.persist();
+  }
+
+  recordRaceResult(input: RaceCareerInput): RaceCareerOutcome {
+    const slice = this.getCareerSlice();
+    const { state, outcome } = applyRaceCareerResult(slice, input);
+    this.applyCareerSlice(state);
+    if (this.state.selectedTrack && !this.isTrackUnlocked(this.state.selectedTrack)) {
+      this.state.selectedTrack = null;
+    }
+    this.persist();
+    return outcome;
+  }
+
+  resetCareer(): void {
+    const slice = this.getCareerSlice();
+    const next = resetCareerProgress(slice);
+    this.applyCareerSlice(next);
+    if (this.state.selectedTrack && !this.isTrackUnlocked(this.state.selectedTrack)) {
+      this.state.selectedTrack = null;
+    }
+    this.persist();
+  }
+
   reset(): void {
     this.state = { ...DEFAULT_GAME_STATE, settings: { ...DEFAULT_GAME_STATE.settings } };
     SaveSystem.reset();
@@ -101,6 +153,24 @@ class GameStateManager {
 
   private persist(): void {
     SaveSystem.save(this.state);
+  }
+
+  private getCareerSlice(): CareerStateSlice {
+    return {
+      coins: this.state.coins,
+      bestTimes: this.state.bestTimes,
+      completedTracks: this.state.completedTracks,
+      unlockedTracks: this.state.unlockedTracks,
+      careerStatistics: this.state.careerStatistics,
+    };
+  }
+
+  private applyCareerSlice(slice: CareerStateSlice): void {
+    this.state.coins = slice.coins;
+    this.state.bestTimes = slice.bestTimes;
+    this.state.completedTracks = slice.completedTracks;
+    this.state.unlockedTracks = slice.unlockedTracks;
+    this.state.careerStatistics = slice.careerStatistics;
   }
 }
 

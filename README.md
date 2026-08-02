@@ -34,6 +34,8 @@ npm run preview
 
 ```text
 Main Menu → Character Select → Car Select → Track Select → Race Loading → Race
+
+Main Menu also includes **Career** (progression summary) and **Settings → Reset Career**.
 ```
 
 Backward navigation retains all valid selections. Selections persist across reloads.
@@ -65,26 +67,26 @@ Backward navigation retains all valid selections. Selections persist across relo
 **Phase 4** ✅ Track selection & race loading  
 **Phase 5** ✅ First playable driving prototype  
 **Phase 6** ✅ Race rules, checkpoints, laps, timer, and finish state  
-**Phase 7** ✅ AI opponents, race position, and finishing order
+**Phase 7** ✅ AI opponents, race position, and finishing order  
+**Phase 8** ✅ Career progression, unlocks, best times, and persistent save
 
-Phase 7 implemented:
+Phase 8 implemented:
 
-- Three AI racers (Citrus, Pepper, Berry) with distinct driving profiles
-- Four-car starting grid on Mango Meadows
-- AI path-following with rubber-banding and stuck recovery
-- Independent checkpoint and lap tracking per racer
-- Live player position HUD (1 / 4)
-- Car-to-car collisions
-- Full four-racer finishing order in results
-- Post-player-finish timeout with DNF classification
-- Version **0.7.0**
+- Career progression with coins, best times, and statistics
+- Ruby Coast unlocks after winning Mango Meadows (1st place only)
+- Expanded race results with coins, best time, and unlock messages
+- Career screen from main menu (coins, wins, races, best times, fastest lap)
+- Track cards show LOCKED / UNLOCKED / ✓ COMPLETE with best times
+- Reset Career in Settings (preserves audio and control preferences)
+- Safe migration for existing `mango-ruby-racing-save-v1` saves
+- Version **0.8.0**
 
 ## Roadmap
 
 | Phase | Focus |
 |-------|-------|
-| **Phase 0–7** | Complete ✅ |
-| **Phase 8** | Progression, unlocks, audio, polish |
+| **Phase 0–8** | Complete ✅ |
+| **Phase 9** | Ruby Coast gameplay, audio, polish |
 
 ## Deployment
 
