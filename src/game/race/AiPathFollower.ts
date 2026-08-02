@@ -1,6 +1,13 @@
-import type { PathPoint } from './tracks/mangoMeadowsRaceData';
+import type { PathPoint, TrackAiTuning } from './tracks/trackTypes';
 import { AI_CONFIG } from './aiConfig';
 import type { RaceInput } from './TouchControls';
+
+const DEFAULT_AI_TUNING: TrackAiTuning = {
+  baseSpeedScale: 1,
+  cornerBrakeStrength: 1,
+  recoveryDistance: AI_CONFIG.maxRecoveryDistance,
+  lookAheadScale: 1,
+};
 
 export interface AiFollowerState {
   pathIndex: number;
@@ -56,9 +63,11 @@ export function computeAiInput(
     pathLookAhead: number;
   },
   rubberBandMultiplier: number,
+  tuning: TrackAiTuning = DEFAULT_AI_TUNING,
 ): { input: RaceInput; state: AiFollowerState } {
   const nextState = { ...state };
-  const targetIndex = (state.pathIndex + profile.pathLookAhead) % path.length;
+  const lookAhead = Math.max(1, Math.round(profile.pathLookAhead * tuning.lookAheadScale));
+  const targetIndex = (state.pathIndex + lookAhead) % path.length;
   const target = path[targetIndex];
   const dx = target.x - x;
   const dy = target.y - y;
@@ -74,8 +83,18 @@ export function computeAiInput(
   const steerLeft = angleDiff < -steerThreshold;
   const steerRight = angleDiff > steerThreshold;
 
-  const targetSpeed = 280 * profile.targetSpeedMultiplier * rubberBandMultiplier;
-  const brake = speed > targetSpeed * profile.cornerCaution || Math.abs(angleDiff) > 0.9;
+  const farIndex = (state.pathIndex + lookAhead * 2) % path.length;
+  const far = path[farIndex];
+  const futureAngle = Math.atan2(far.y - y, far.x - x);
+  const curvature = Math.abs(normalizeAngle(futureAngle - desiredAngle));
+
+  const targetSpeed =
+    280 * profile.targetSpeedMultiplier * rubberBandMultiplier * tuning.baseSpeedScale;
+  const brakeThreshold = profile.cornerCaution * tuning.cornerBrakeStrength;
+  const brake =
+    speed > targetSpeed * brakeThreshold ||
+    Math.abs(angleDiff) > 0.85 + curvature * 0.25 ||
+    curvature > 0.55;
 
   return {
     input: { steerLeft, steerRight, brake },
@@ -90,6 +109,7 @@ export function updateAiStuckState(
   y: number,
   path: readonly PathPoint[],
   deltaMs: number,
+  tuning: TrackAiTuning = DEFAULT_AI_TUNING,
 ): AiFollowerState {
   const next = { ...state };
   next.recoveryCooldownMs = Math.max(0, next.recoveryCooldownMs - deltaMs);
@@ -113,7 +133,7 @@ export function updateAiStuckState(
   if (
     next.recoveryCooldownMs <= 0 &&
     (next.stuckMs >= AI_CONFIG.stuckTimeThresholdMs ||
-      distFromPath > AI_CONFIG.maxRecoveryDistance)
+      distFromPath > tuning.recoveryDistance)
   ) {
     next.pathIndex = nearest;
     next.stuckMs = 0;

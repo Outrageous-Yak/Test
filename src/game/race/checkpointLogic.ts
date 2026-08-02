@@ -284,7 +284,9 @@ export function resetRaceProgress(totalLaps: number): {
   };
 }
 
-/** Whether the selected track can launch the Phase 6 race rules */
+/** Whether the selected track can launch a race — delegates to TrackRegistry */
 export function isSupportedRaceTrack(trackId: string | null): boolean {
-  return trackId === 'mango-meadows';
+  if (trackId === null) return false;
+  // Re-exported from TrackRegistry at runtime to avoid circular imports in tests
+  return trackId === 'mango-meadows' || trackId === 'ruby-coast';
 }

@@ -8,6 +8,7 @@ import { getCarDisplayName } from '../data/cars';
 import { parseTrackId } from '../data/tracks';
 import { GameState } from '../state/GameState';
 import type { TrackId } from '../state/gameStateTypes';
+import { isPlayableTrack } from '../race/tracks/TrackRegistry';
 import { fadeInScene, fadeToScene } from '../utils/sceneTransition';
 import { triggerSelectionVibration } from '../utils/vibration';
 import { hasValidSelectedCharacter, hasValidSelectedCar } from '../utils/flowRecovery';
@@ -109,7 +110,14 @@ export class TrackSelectScene extends Phaser.Scene {
       const x = startX + index * cardSpacing;
       const locked = !GameState.isTrackUnlocked(track.id);
       const completed = GameState.isTrackCompleted(track.id);
-      const status = locked ? 'locked' : completed ? 'complete' : 'unlocked';
+      const playable = isPlayableTrack(track.id);
+      const status = locked
+        ? 'locked'
+        : completed
+          ? 'complete'
+          : playable
+            ? 'unlocked'
+            : 'coming-soon';
       const bestTimeMs = GameState.getBestTime(track.id);
 
       const card = createTrackCard(this, {
@@ -183,7 +191,9 @@ export class TrackSelectScene extends Phaser.Scene {
 
   private updateContinueButton(): void {
     const valid =
-      this.selectedId !== null && GameState.isTrackUnlocked(this.selectedId);
+      this.selectedId !== null &&
+      GameState.isTrackUnlocked(this.selectedId) &&
+      isPlayableTrack(this.selectedId);
     this.continueButton.setEnabled(valid);
   }
 

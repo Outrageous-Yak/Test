@@ -54,9 +54,9 @@ Backward navigation retains all valid selections. Selections persist across relo
 
 | Track | Difficulty | Default State |
 |-------|------------|---------------|
-| Mango Meadows | Easy | Unlocked |
-| Ruby Coast | Medium | Locked |
-| Volcano Rush | Hard | Locked |
+| Mango Meadows | Easy | Unlocked (playable) |
+| Ruby Coast | Medium | Locked until Mango Meadows win (playable when unlocked) |
+| Volcano Rush | Hard | Locked until Ruby Coast win (unlocked in career, playable Phase 10) |
 
 ## Current Phase
 
@@ -68,25 +68,25 @@ Backward navigation retains all valid selections. Selections persist across relo
 **Phase 5** ✅ First playable driving prototype  
 **Phase 6** ✅ Race rules, checkpoints, laps, timer, and finish state  
 **Phase 7** ✅ AI opponents, race position, and finishing order  
-**Phase 8** ✅ Career progression, unlocks, best times, and persistent save
+**Phase 8** ✅ Career progression, unlocks, best times, and persistent save  
+**Phase 9** ✅ Multi-track engine and playable Ruby Coast
 
-Phase 8 implemented:
+Phase 9 implemented:
 
-- Career progression with coins, best times, and statistics
-- Ruby Coast unlocks after winning Mango Meadows (1st place only)
-- Expanded race results with coins, best time, and unlock messages
-- Career screen from main menu (coins, wins, races, best times, fastest lap)
-- Track cards show LOCKED / UNLOCKED / ✓ COMPLETE with best times
-- Reset Career in Settings (preserves audio and control preferences)
-- Safe migration for existing `mango-ruby-racing-save-v1` saves
-- Version **0.8.0**
+- Reusable multi-track architecture with `TrackRegistry` and typed track definitions
+- Mango Meadows migrated to the new engine without gameplay changes
+- Ruby Coast fully playable — coastal circuit with unique geometry, checkpoints, and AI path
+- Dynamic race loading from `GameState.selectedTrack` (no Mango Meadows default)
+- Winning Ruby Coast unlocks Volcano Rush (visible as unlocked but not yet playable)
+- Track-specific camera, barriers, grid, and AI tuning per track
+- Version **0.9.0**
 
 ## Roadmap
 
 | Phase | Focus |
 |-------|-------|
-| **Phase 0–8** | Complete ✅ |
-| **Phase 9** | Ruby Coast gameplay, audio, polish |
+| **Phase 0–9** | Complete ✅ |
+| **Phase 10** | Volcano Rush gameplay, audio, polish |
 
 ## Deployment
 

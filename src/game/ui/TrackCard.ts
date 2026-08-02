@@ -7,7 +7,7 @@ import {
   type TrackDefinition,
 } from '../data/tracks';
 
-export type TrackCardStatus = 'locked' | 'unlocked' | 'complete';
+export type TrackCardStatus = 'locked' | 'unlocked' | 'complete' | 'coming-soon';
 
 export interface TrackCardOptions {
   x: number;
@@ -88,6 +88,8 @@ function getStatusLabel(status: TrackCardStatus): string {
       return 'UNLOCKED';
     case 'complete':
       return '✓ COMPLETE';
+    case 'coming-soon':
+      return 'COMING SOON';
   }
 }
 
@@ -99,7 +101,15 @@ function getStatusColor(status: TrackCardStatus): string {
       return '#aaffaa';
     case 'complete':
       return '#ffd700';
+    case 'coming-soon':
+      return '#ffd700';
   }
+}
+
+function getHintText(status: TrackCardStatus, track: TrackDefinition): string {
+  if (status === 'locked') return track.unlockHint;
+  if (status === 'coming-soon') return 'Volcano Rush arrives in Phase 10.';
+  return track.subtitle;
 }
 
 /**
@@ -183,7 +193,7 @@ export function createTrackCard(scene: Phaser.Scene, options: TrackCardOptions):
     .setOrigin(0.5);
 
   const lockHint = scene.add
-    .text(0, height * 0.4, initialStatus === 'locked' ? track.unlockHint : track.subtitle, {
+    .text(0, height * 0.4, getHintText(initialStatus, track), {
       fontFamily: FONTS.PRIMARY,
       fontSize: '13px',
       color: '#f0f0f0',
@@ -253,11 +263,15 @@ export function createTrackCard(scene: Phaser.Scene, options: TrackCardOptions):
   const setStatus = (status: TrackCardStatus, bestTimeMs: number | null = null): void => {
     cardStatus = status;
     const locked = status === 'locked';
+    const comingSoon = status === 'coming-soon';
     background.setAlpha(locked ? 0.3 : 0.85);
     lockIcon.setVisible(locked);
     statusText.setText(getStatusLabel(status));
     statusText.setColor(getStatusColor(status));
-    lockHint.setText(locked ? track.unlockHint : track.subtitle);
+    if (comingSoon) {
+      statusText.setText('UNLOCKED\nCOMING SOON');
+    }
+    lockHint.setText(getHintText(status, track));
     updateBestTimeDisplay(bestTimeMs);
     previewContainer.setAlpha(locked ? 0.35 : 1);
 

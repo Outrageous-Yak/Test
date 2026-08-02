@@ -30,7 +30,7 @@ import {
   resetRacerState,
   updateStartZone,
 } from './checkpointLogic';
-import type { GridPose, TrackRaceData } from './tracks/mangoMeadowsRaceData';
+import type { GridPose, TrackRaceData } from './tracks/trackTypes';
 import type {
   CheckpointDefinition,
   CheckpointProgress,
@@ -151,6 +151,10 @@ export class RaceParticipantManager {
 
   getDefinitions(): readonly CheckpointDefinition[] {
     return this.definitions;
+  }
+
+  getTrackData(): TrackRaceData {
+    return this.trackData;
   }
 
   getResults(): readonly RacerResult[] {
@@ -415,6 +419,7 @@ export class RaceParticipantManager {
       car.getY(),
       this.trackData.aiPath,
       deltaMs,
+      this.trackData.aiTuning,
     );
 
     const recoveryState = aiState as AiFollowerState & { needsRecovery?: boolean };
@@ -433,6 +438,7 @@ export class RaceParticipantManager {
       aiState,
       profile,
       aiState.rubberBandMultiplier,
+      this.trackData.aiTuning,
     );
     participant.aiState = state;
     car.update(deltaMs, input);

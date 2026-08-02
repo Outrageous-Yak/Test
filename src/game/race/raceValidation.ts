@@ -5,16 +5,19 @@ import {
   hasValidSelectedCar,
   hasValidSelectedTrack,
 } from '../utils/flowRecovery';
-import { isSupportedRaceTrack } from './checkpointLogic';
+import { isSupportedRaceTrack } from './tracks/TrackRegistry';
 
-/** Validates that the current selections can launch the Phase 6 Mango Meadows race */
-export function canLaunchPhase6Race(): boolean {
+/** Validates that the current selections can launch a playable race */
+export function canLaunchRace(): boolean {
   if (!hasValidSelectedCharacter() || !hasValidSelectedCar() || !hasValidSelectedTrack()) {
     return false;
   }
   const state = GameState.getState();
   return isSupportedRaceTrack(state.selectedTrack);
 }
+
+/** @deprecated Use canLaunchRace */
+export const canLaunchPhase6Race = canLaunchRace;
 
 /** Returns the scene key to redirect to when race launch is invalid */
 export function getRaceLaunchRedirectScene(): string | null {

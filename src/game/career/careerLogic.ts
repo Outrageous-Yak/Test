@@ -67,6 +67,7 @@ export function isPodium(position: number): boolean {
 export function getUnlockForWin(trackId: TrackId, position: number): TrackId | null {
   if (!isWin(position)) return null;
   if (trackId === 'mango-meadows') return 'ruby-coast';
+  if (trackId === 'ruby-coast') return 'volcano-rush';
   return null;
 }
 
