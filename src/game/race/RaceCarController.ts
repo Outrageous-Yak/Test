@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import type { RaceInput } from './raceInput';
 
 /** Shared minimal interface for player and AI race cars */
 export interface RaceCarController {
@@ -7,6 +8,7 @@ export interface RaceCarController {
   getY(): number;
   getRotation(): number;
   getSpeed(): number;
+  getSignedSpeed(): number;
   getVelocityX(): number;
   getVelocityY(): number;
   setInputEnabled(enabled: boolean): void;
@@ -14,6 +16,6 @@ export interface RaceCarController {
   stop(): void;
   coastToStop(deltaMs: number): void;
   onBarrierHit(): void;
-  update(deltaMs: number, input: import('./TouchControls').RaceInput): void;
+  update(deltaMs: number, input: RaceInput): void;
   destroy(): void;
 }

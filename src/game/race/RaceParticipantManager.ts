@@ -41,7 +41,7 @@ import type {
   RacerRaceProgress,
 } from './raceTypes';
 import { isWrongWayTravel } from './wrongWayDetection';
-import type { RaceInput } from './TouchControls';
+import type { RaceInput } from './raceInput';
 
 const WRONG_WAY_THRESHOLD_MS = 1200;
 const WRONG_WAY_MIN_SPEED = 60;

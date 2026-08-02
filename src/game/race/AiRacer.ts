@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import { DRIVING } from './raceConstants';
 import type { RaceCarController } from './RaceCarController';
-import type { RaceInput } from './TouchControls';
+import type { RaceInput } from './raceInput';
 
 /**
  * AI-controlled vehicle using the same arcade driving model as the player.
@@ -13,7 +13,6 @@ export class AiRacer implements RaceCarController {
   private inputEnabled = false;
 
   constructor(scene: Phaser.Scene, x: number, y: number, angle: number, color: number) {
-
     this.sprite = scene.add.rectangle(x, y, DRIVING.CAR_WIDTH, DRIVING.CAR_HEIGHT, color);
     this.sprite.setRotation(angle);
     this.sprite.setDepth(9);
@@ -45,6 +44,10 @@ export class AiRacer implements RaceCarController {
 
   getSpeed(): number {
     return Math.abs(this.speed);
+  }
+
+  getSignedSpeed(): number {
+    return this.speed;
   }
 
   getVelocityX(): number {
@@ -82,9 +85,7 @@ export class AiRacer implements RaceCarController {
   coastToStop(deltaMs: number): void {
     const dt = deltaMs / 1000;
     this.speed = Math.max(0, this.speed - DRIVING.BRAKE_FORCE * dt * 0.6);
-    const vx = Math.cos(this.sprite.rotation) * this.speed;
-    const vy = Math.sin(this.sprite.rotation) * this.speed;
-    this.body.setVelocity(vx, vy);
+    this.applyVelocity();
   }
 
   onBarrierHit(): void {
@@ -102,31 +103,33 @@ export class AiRacer implements RaceCarController {
 
     const dt = deltaMs / 1000;
 
-    if (input.brake) {
-      if (this.speed > 0) {
-        this.speed = Math.max(0, this.speed - DRIVING.BRAKE_FORCE * dt);
-      }
-    } else {
-      this.speed = Math.min(DRIVING.MAX_SPEED, this.speed + DRIVING.ACCELERATION * dt);
+    if (input.throttle > 0 && input.brake <= 0) {
+      this.speed += DRIVING.ACCELERATION * input.throttle * dt;
+      this.speed = Math.min(DRIVING.MAX_SPEED, this.speed);
     }
 
-    if (!input.brake && this.speed > 0) {
+    if (input.brake > 0 && this.speed > 0) {
+      this.speed = Math.max(0, this.speed - DRIVING.BRAKE_FORCE * input.brake * dt);
+    }
+
+    if (input.throttle <= 0 && input.brake <= 0 && this.speed > 0) {
       this.speed = Math.max(0, this.speed - DRIVING.FRICTION * dt * 0.25);
     }
 
     const speedFactor = Math.max(DRIVING.MIN_TURN_SPEED, Math.abs(this.speed) / DRIVING.MAX_SPEED);
-    let turn = 0;
-    if (input.steerLeft) turn -= DRIVING.TURN_RATE * speedFactor * dt;
-    if (input.steerRight) turn += DRIVING.TURN_RATE * speedFactor * dt;
-
+    const turn = input.steer * DRIVING.TURN_RATE * speedFactor * dt;
     this.sprite.rotation += turn;
 
-    const vx = Math.cos(this.sprite.rotation) * this.speed;
-    const vy = Math.sin(this.sprite.rotation) * this.speed;
-    this.body.setVelocity(vx, vy);
+    this.applyVelocity();
   }
 
   destroy(): void {
     this.sprite.destroy();
+  }
+
+  private applyVelocity(): void {
+    const vx = Math.cos(this.sprite.rotation) * this.speed;
+    const vy = Math.sin(this.sprite.rotation) * this.speed;
+    this.body.setVelocity(vx, vy);
   }
 }

@@ -1,67 +1,95 @@
 import Phaser from 'phaser';
-import { FONTS, GAME_HEIGHT, GAME_WIDTH, MIN_TOUCH_TARGET } from '../constants';
+import { GAME_HEIGHT, GAME_WIDTH } from '../constants';
+import { NudgePad } from './NudgePad';
+import {
+  buildRaceInputFromIntent,
+  createReverseLatchState,
+  type ReverseLatchState,
+} from './nudgePadLogic';
+import { buildKeyboardIntent, mergeDriveIntents } from './touchControlsLogic';
+import type { DriveIntent, RaceInput } from './raceInput';
+import { ZERO_DRIVE_INTENT, ZERO_RACE_INPUT } from './raceInput';
 import { HUD_INSETS } from './raceHudInsets';
 
-export interface RaceInput {
-  steerLeft: boolean;
-  steerRight: boolean;
-  brake: boolean;
-}
+export type { RaceInput } from './raceInput';
 
-interface ControlButton {
-  zone: Phaser.GameObjects.Rectangle;
-  label: Phaser.GameObjects.Text;
-  active: boolean;
-}
+const PAD_WIDTH = 176;
+const PAD_HEIGHT = 188;
 
 /**
- * On-screen race controls — LEFT / RIGHT (bottom-left), BRAKE (bottom-right).
- * Fixed to camera; supports hold-to-steer input.
+ * Sole touch driving control — bottom-right nudge pad with WASD / arrow fallback.
  */
 export class TouchControls {
-  private readonly scene: Phaser.Scene;
-  private readonly buttons: Record<'left' | 'right' | 'brake', ControlButton>;
-  private readonly cursors?: Phaser.Types.Input.Keyboard.CursorKeys;
+  private readonly nudgePad: NudgePad;
+  private readonly keys: {
+    forward: Phaser.Input.Keyboard.Key;
+    backward: Phaser.Input.Keyboard.Key;
+    left: Phaser.Input.Keyboard.Key;
+    right: Phaser.Input.Keyboard.Key;
+    upArrow: Phaser.Input.Keyboard.Key;
+    downArrow: Phaser.Input.Keyboard.Key;
+    leftArrow: Phaser.Input.Keyboard.Key;
+    rightArrow: Phaser.Input.Keyboard.Key;
+  };
   private enabled = true;
   private dimmed = false;
+  private reverseLatch: ReverseLatchState = createReverseLatchState();
 
   constructor(scene: Phaser.Scene) {
-    this.scene = scene;
-    this.cursors = scene.input.keyboard?.createCursorKeys();
-
-    const btnW = 88;
-    const btnH = Math.max(MIN_TOUCH_TARGET, 64);
-    const margin = HUD_INSETS.LEFT;
-    const bottomY = GAME_HEIGHT - HUD_INSETS.BOTTOM - btnH / 2;
-
-    this.buttons = {
-      left: this.createButton(margin + btnW / 2, bottomY, btnW, btnH, 'LEFT'),
-      right: this.createButton(margin + btnW * 1.6, bottomY, btnW, btnH, 'RIGHT'),
-      brake: this.createButton(GAME_WIDTH - margin - btnW / 2, bottomY, btnW, btnH, 'BRAKE'),
-    };
-  }
-
-  getInput(): RaceInput {
-    if (!this.enabled) {
-      return { steerLeft: false, steerRight: false, brake: false };
+    const keyboard = scene.input.keyboard;
+    if (!keyboard) {
+      throw new Error('TouchControls requires a keyboard plugin for desktop fallback');
     }
 
-    const keyboardLeft = this.cursors?.left.isDown ?? false;
-    const keyboardRight = this.cursors?.right.isDown ?? false;
-    const keyboardBrake = this.cursors?.down.isDown ?? false;
-
-    return {
-      steerLeft: this.buttons.left.active || keyboardLeft,
-      steerRight: this.buttons.right.active || keyboardRight,
-      brake: this.buttons.brake.active || keyboardBrake,
+    this.keys = {
+      forward: keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.W),
+      backward: keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.S),
+      left: keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.A),
+      right: keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.D),
+      upArrow: keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.UP),
+      downArrow: keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.DOWN),
+      leftArrow: keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.LEFT),
+      rightArrow: keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.RIGHT),
     };
+
+    const margin = HUD_INSETS.RIGHT;
+    const bottom = GAME_HEIGHT - HUD_INSETS.BOTTOM;
+
+    this.nudgePad = new NudgePad(scene, {
+      x: GAME_WIDTH - margin - PAD_WIDTH / 2,
+      y: bottom - PAD_HEIGHT / 2,
+      width: PAD_WIDTH,
+      height: PAD_HEIGHT,
+      title: 'DRIVE',
+    });
+  }
+
+  tick(signedSpeed: number): void {
+    const intent = this.getDriveIntent();
+    this.nudgePad.updateActionLabel(intent, signedSpeed, this.reverseLatch);
+  }
+
+  getInput(signedSpeed: number): RaceInput {
+    if (!this.enabled) {
+      return { ...ZERO_RACE_INPUT };
+    }
+
+    const intent = this.getDriveIntent();
+    const built = buildRaceInputFromIntent(intent, signedSpeed, this.reverseLatch);
+    this.reverseLatch = built.latch;
+    return built.input;
+  }
+
+  getDriveIntent(): DriveIntent {
+    if (!this.enabled) {
+      return { ...ZERO_DRIVE_INTENT };
+    }
+
+    return mergeDriveIntents(this.nudgePad.getDriveIntent(), this.keyboardIntent());
   }
 
   setVisible(visible: boolean): void {
-    Object.values(this.buttons).forEach((btn) => {
-      btn.zone.setVisible(visible);
-      btn.label.setVisible(visible);
-    });
+    this.nudgePad.setVisible(visible);
   }
 
   setEnabled(enabled: boolean): void {
@@ -69,82 +97,30 @@ export class TouchControls {
     if (!enabled) {
       this.clearInput();
     }
-    this.applyDimState();
+    this.nudgePad.setEnabled(enabled);
+    this.nudgePad.setDimmed(this.dimmed);
   }
 
   setDimmed(dimmed: boolean): void {
     this.dimmed = dimmed;
-    this.applyDimState();
+    this.nudgePad.setDimmed(dimmed);
   }
 
   clearInput(): void {
-    Object.values(this.buttons).forEach((btn) => {
-      btn.active = false;
-      btn.zone.setFillStyle(0x000000, 0.45);
-    });
-  }
-
-  private applyDimState(): void {
-    const alpha = !this.enabled || this.dimmed ? 0.4 : 1;
-    Object.values(this.buttons).forEach((btn) => {
-      btn.zone.setAlpha(alpha);
-      btn.label.setAlpha(alpha);
-      if (!this.enabled) {
-        btn.zone.disableInteractive();
-      } else {
-        btn.zone.setInteractive({ useHandCursor: false });
-      }
-    });
+    this.nudgePad.clearInput();
+    this.reverseLatch = createReverseLatchState();
   }
 
   destroy(): void {
-    Object.values(this.buttons).forEach((btn) => {
-      btn.zone.destroy();
-      btn.label.destroy();
-    });
+    this.nudgePad.destroy();
   }
 
-  private createButton(
-    x: number,
-    y: number,
-    w: number,
-    h: number,
-    text: string,
-  ): ControlButton {
-    const zone = this.scene.add
-      .rectangle(x, y, w, h, 0x000000, 0.45)
-      .setStrokeStyle(2, 0xffffff, 0.8)
-      .setScrollFactor(0)
-      .setDepth(1000)
-      .setInteractive({ useHandCursor: false });
-
-    const label = this.scene.add
-      .text(x, y, text, {
-        fontFamily: FONTS.PRIMARY,
-        fontSize: '20px',
-        color: '#ffffff',
-        fontStyle: 'bold',
-      })
-      .setOrigin(0.5)
-      .setScrollFactor(0)
-      .setDepth(1001);
-
-    const button: ControlButton = { zone, label, active: false };
-
-    zone.on('pointerdown', () => {
-      if (!this.enabled) return;
-      button.active = true;
-      zone.setFillStyle(0xff6b35, 0.7);
+  private keyboardIntent(): DriveIntent {
+    return buildKeyboardIntent({
+      forward: this.keys.forward.isDown || this.keys.upArrow.isDown,
+      backward: this.keys.backward.isDown || this.keys.downArrow.isDown,
+      left: this.keys.left.isDown || this.keys.leftArrow.isDown,
+      right: this.keys.right.isDown || this.keys.rightArrow.isDown,
     });
-
-    const release = () => {
-      button.active = false;
-      zone.setFillStyle(0x000000, 0.45);
-    };
-
-    zone.on('pointerup', release);
-    zone.on('pointerout', release);
-
-    return button;
   }
 }

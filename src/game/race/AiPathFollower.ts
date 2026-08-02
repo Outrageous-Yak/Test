@@ -1,6 +1,7 @@
 import type { PathPoint, TrackAiTuning } from './tracks/trackTypes';
 import { AI_CONFIG } from './aiConfig';
-import type { RaceInput } from './TouchControls';
+import { aiFlagsToRaceInput } from './aiInputAdapter';
+import type { RaceInput } from './raceInput';
 
 const DEFAULT_AI_TUNING: TrackAiTuning = {
   baseSpeedScale: 1,
@@ -97,7 +98,7 @@ export function computeAiInput(
     curvature > 0.55;
 
   return {
-    input: { steerLeft, steerRight, brake },
+    input: aiFlagsToRaceInput(steerLeft, steerRight, brake),
     state: nextState,
   };
 }

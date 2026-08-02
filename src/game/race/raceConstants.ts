@@ -21,6 +21,9 @@ export const RACE_COLORS = {
 
 export const DRIVING = {
   MAX_SPEED: 340,
+  /** Reverse cap ≈ 42% of forward maximum (feels controllable, not instant). */
+  MAX_REVERSE_SPEED: 143,
+  REVERSE_SPEED_RATIO: 0.42,
   ACCELERATION: 320,
   BRAKE_FORCE: 480,
   FRICTION: 140,

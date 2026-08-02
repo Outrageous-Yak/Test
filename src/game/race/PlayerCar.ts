@@ -1,14 +1,18 @@
 import Phaser from 'phaser';
 import { DRIVING, RACE_COLORS } from './raceConstants';
 import type { RaceCarController } from './RaceCarController';
-import type { RaceInput } from './TouchControls';
+import type { RaceInput } from './raceInput';
 
 /**
- * Player vehicle — temporary rectangle shape with arcade-style driving.
+ * Player vehicle — arcade driving with analog throttle, brake, reverse, and steer.
+ *
+ * Steering while reversing uses inverted rotation so pad-left still swings the car
+ * rear left (real-car convention in top-down view).
  */
 export class PlayerCar implements RaceCarController {
   private readonly sprite: Phaser.GameObjects.Rectangle;
   private readonly body: Phaser.Physics.Arcade.Body;
+  /** Signed speed along facing direction (negative = reverse). */
   private speed = 0;
   private spawnX: number;
   private spawnY: number;
@@ -47,6 +51,10 @@ export class PlayerCar implements RaceCarController {
 
   getVelocityY(): number {
     return this.body.velocity.y;
+  }
+
+  getSignedSpeed(): number {
+    return this.speed;
   }
 
   resetToPose(x: number, y: number, rotation: number): void {
@@ -94,16 +102,16 @@ export class PlayerCar implements RaceCarController {
     this.body.setVelocity(0, 0);
   }
 
-  /** Gradually decelerate after race finish */
   coastToStop(deltaMs: number): void {
     const dt = deltaMs / 1000;
-    this.speed = Math.max(0, this.speed - DRIVING.BRAKE_FORCE * dt * 0.6);
-    const vx = Math.cos(this.sprite.rotation) * this.speed;
-    const vy = Math.sin(this.sprite.rotation) * this.speed;
-    this.body.setVelocity(vx, vy);
+    if (this.speed > 0) {
+      this.speed = Math.max(0, this.speed - DRIVING.BRAKE_FORCE * dt * 0.6);
+    } else if (this.speed < 0) {
+      this.speed = Math.min(0, this.speed + DRIVING.BRAKE_FORCE * dt * 0.6);
+    }
+    this.applyVelocity();
   }
 
-  /** Reduce speed after barrier collision so bounce feels responsive. */
   onBarrierHit(): void {
     this.speed *= 0.55;
     if (Math.abs(this.speed) < 20) {
@@ -118,31 +126,39 @@ export class PlayerCar implements RaceCarController {
     }
 
     const dt = deltaMs / 1000;
+    const hasDriveInput = input.throttle > 0 || input.brake > 0 || input.reverse > 0;
 
-    if (input.brake) {
-      if (this.speed > 0) {
-        this.speed = Math.max(0, this.speed - DRIVING.BRAKE_FORCE * dt);
-      } else {
-        this.speed = Math.min(0, this.speed + DRIVING.BRAKE_FORCE * dt);
+    if (input.throttle > 0 && input.reverse <= 0) {
+      this.speed += DRIVING.ACCELERATION * input.throttle * dt;
+      if (this.speed < 0) {
+        this.speed = Math.min(0, this.speed + DRIVING.BRAKE_FORCE * input.throttle * dt);
       }
-    } else {
-      this.speed = Math.min(DRIVING.MAX_SPEED, this.speed + DRIVING.ACCELERATION * dt);
+      this.speed = Math.min(DRIVING.MAX_SPEED, this.speed);
     }
 
-    if (!input.brake && this.speed > 0) {
-      this.speed = Math.max(0, this.speed - DRIVING.FRICTION * dt * 0.25);
+    if (input.brake > 0 && this.speed > 0) {
+      this.speed = Math.max(0, this.speed - DRIVING.BRAKE_FORCE * input.brake * dt);
+    }
+
+    if (input.reverse > 0) {
+      this.speed -= DRIVING.ACCELERATION * input.reverse * dt;
+      this.speed = Math.max(-DRIVING.MAX_REVERSE_SPEED, this.speed);
+    }
+
+    if (!hasDriveInput) {
+      if (this.speed > 0) {
+        this.speed = Math.max(0, this.speed - DRIVING.FRICTION * dt);
+      } else if (this.speed < 0) {
+        this.speed = Math.min(0, this.speed + DRIVING.FRICTION * dt);
+      }
     }
 
     const speedFactor = Math.max(DRIVING.MIN_TURN_SPEED, Math.abs(this.speed) / DRIVING.MAX_SPEED);
-    let turn = 0;
-    if (input.steerLeft) turn -= DRIVING.TURN_RATE * speedFactor * dt;
-    if (input.steerRight) turn += DRIVING.TURN_RATE * speedFactor * dt;
-
+    const steerSign = this.speed < 0 ? -1 : 1;
+    const turn = input.steer * steerSign * DRIVING.TURN_RATE * speedFactor * dt;
     this.sprite.rotation += turn;
 
-    const vx = Math.cos(this.sprite.rotation) * this.speed;
-    const vy = Math.sin(this.sprite.rotation) * this.speed;
-    this.body.setVelocity(vx, vy);
+    this.applyVelocity();
   }
 
   resetToSpawn(): void {
@@ -151,5 +167,11 @@ export class PlayerCar implements RaceCarController {
 
   destroy(): void {
     this.sprite.destroy();
+  }
+
+  private applyVelocity(): void {
+    const vx = Math.cos(this.sprite.rotation) * this.speed;
+    const vy = Math.sin(this.sprite.rotation) * this.speed;
+    this.body.setVelocity(vx, vy);
   }
 }
