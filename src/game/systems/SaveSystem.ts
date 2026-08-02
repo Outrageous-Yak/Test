@@ -5,6 +5,7 @@ import {
 } from '../state/gameStateTypes';
 import { parseCharacterId, filterUnlockedCharacterIds } from '../data/characters';
 import { parseCarId, filterUnlockedCarIds } from '../data/cars';
+import { parseTrackId, filterUnlockedTrackIds } from '../data/tracks';
 
 export const STORAGE_KEY = 'mango-ruby-racing-save-v1';
 
@@ -48,6 +49,23 @@ export function mergeWithDefaults(partial: Partial<SerializableGameState>): Seri
     ? filterUnlockedCarIds(partial.unlockedCars)
     : [];
 
+  const unlockedTracksFromSave = isStringArray(partial.unlockedTracks)
+    ? filterUnlockedTrackIds(partial.unlockedTracks)
+    : [];
+
+  const unlockedTracks =
+    unlockedTracksFromSave.length > 0
+      ? unlockedTracksFromSave
+      : [...DEFAULT_GAME_STATE.unlockedTracks];
+
+  const parsedSelectedTrack =
+    partial.selectedTrack === null ? null : parseTrackId(partial.selectedTrack);
+
+  const selectedTrack =
+    parsedSelectedTrack && unlockedTracks.includes(parsedSelectedTrack)
+      ? parsedSelectedTrack
+      : null;
+
   return {
     selectedCharacter:
       partial.selectedCharacter === null
@@ -57,7 +75,7 @@ export function mergeWithDefaults(partial: Partial<SerializableGameState>): Seri
       partial.selectedCar === null
         ? null
         : parseCarId(partial.selectedCar) ?? DEFAULT_GAME_STATE.selectedCar,
-    selectedTrack: partial.selectedTrack ?? DEFAULT_GAME_STATE.selectedTrack,
+    selectedTrack,
     coins: typeof partial.coins === 'number' && partial.coins >= 0 ? partial.coins : DEFAULT_GAME_STATE.coins,
     unlockedCharacters:
       unlockedFromSave.length > 0
@@ -67,9 +85,7 @@ export function mergeWithDefaults(partial: Partial<SerializableGameState>): Seri
       unlockedCarsFromSave.length > 0
         ? unlockedCarsFromSave
         : [...DEFAULT_GAME_STATE.unlockedCars],
-    unlockedTracks: isStringArray(partial.unlockedTracks)
-      ? partial.unlockedTracks
-      : [...DEFAULT_GAME_STATE.unlockedTracks],
+    unlockedTracks,
     settings: {
       ...DEFAULT_GAME_STATE.settings,
       ...parseSettings(partial.settings),

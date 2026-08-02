@@ -1,6 +1,7 @@
 import { SaveSystem } from '../systems/SaveSystem';
 import { canSelectCharacter } from '../data/characters';
 import { canSelectCar } from '../data/cars';
+import { isValidTrackId } from '../data/tracks';
 import {
   DEFAULT_GAME_STATE,
   type CharacterId,
@@ -58,9 +59,29 @@ class GameStateManager {
     return true;
   }
 
-  setSelectedTrack(track: TrackId | null): void {
+  setSelectedTrack(track: TrackId | null): boolean {
+    if (track !== null && !this.isTrackUnlocked(track)) {
+      return false;
+    }
     this.state.selectedTrack = track;
     this.persist();
+    return true;
+  }
+
+  isTrackUnlocked(trackId: TrackId): boolean {
+    return this.state.unlockedTracks.includes(trackId);
+  }
+
+  unlockTrack(trackId: TrackId): boolean {
+    if (!isValidTrackId(trackId)) {
+      return false;
+    }
+    if (this.state.unlockedTracks.includes(trackId)) {
+      return true;
+    }
+    this.state.unlockedTracks = [...this.state.unlockedTracks, trackId];
+    this.persist();
+    return true;
   }
 
   setCoins(coins: number): void {

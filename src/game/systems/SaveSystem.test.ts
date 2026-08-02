@@ -186,3 +186,59 @@ describe('car selection persistence', () => {
     expect(state.coins).toBe(5);
   });
 });
+
+describe('track selection persistence', () => {
+  beforeEach(() => {
+    localStorage.clear();
+  });
+
+  it('accepts valid selectedTrack when unlocked', () => {
+    expect(mergeWithDefaults({ selectedTrack: 'mango-meadows' }).selectedTrack).toBe('mango-meadows');
+    expect(mergeWithDefaults({ selectedTrack: null }).selectedTrack).toBeNull();
+  });
+
+  it('rejects unknown selectedTrack values', () => {
+    expect(mergeWithDefaults({ selectedTrack: 'desert-drift' }).selectedTrack).toBeNull();
+  });
+
+  it('rejects locked selectedTrack values', () => {
+    expect(mergeWithDefaults({ selectedTrack: 'ruby-coast' }).selectedTrack).toBeNull();
+    expect(mergeWithDefaults({ selectedTrack: 'volcano-rush' }).selectedTrack).toBeNull();
+  });
+
+  it('filters invalid unlockedTracks entries', () => {
+    const state = mergeWithDefaults({
+      unlockedTracks: ['mango-meadows', 'fake-track', 'ruby-coast'],
+    });
+    expect(state.unlockedTracks).toEqual(['mango-meadows', 'ruby-coast']);
+  });
+
+  it('falls back to defaults when unlockedTracks is entirely invalid', () => {
+    const state = mergeWithDefaults({ unlockedTracks: ['fake-1', 'fake-2'] });
+    expect(state.unlockedTracks).toEqual(['mango-meadows']);
+  });
+
+  it('persists selectedTrack across reload', () => {
+    const state = mergeWithDefaults({ selectedTrack: 'mango-meadows' });
+    SaveSystem.save(state);
+    expect(SaveSystem.load().selectedTrack).toBe('mango-meadows');
+  });
+
+  it('does not crash on malformed track data', () => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ selectedTrack: 12345 }));
+    expect(() => SaveSystem.load()).not.toThrow();
+    expect(SaveSystem.load().selectedTrack).toBeNull();
+  });
+
+  it('keeps Phase 3 saves compatible when track fields are absent', () => {
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({ selectedCharacter: 'ruby', selectedCar: 'red-car' }),
+    );
+    const state = SaveSystem.load();
+    expect(state.selectedCharacter).toBe('ruby');
+    expect(state.selectedCar).toBe('red-car');
+    expect(state.selectedTrack).toBeNull();
+    expect(state.unlockedTracks).toEqual(['mango-meadows']);
+  });
+});
