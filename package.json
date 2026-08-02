@@ -1,6 +1,6 @@
 {
   "name": "mango-ruby-racing",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "description": "A fun, colourful, mobile-first arcade racing game",
   "type": "module",
   "scripts": {

@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import type { CheckpointDefinition } from './raceTypes';
+import type { RacerId } from './raceTypes';
 
 export interface CheckpointZone {
   definition: CheckpointDefinition;
@@ -26,13 +27,12 @@ function isInsideRotatedRect(
 }
 
 /**
- * Invisible checkpoint trigger zones with optional debug overlays.
- * Entry/exit is evaluated once per update — no per-frame object creation.
+ * Shared checkpoint zones with per-racer inside tracking.
  */
 export class CheckpointSystem {
   private readonly scene: Phaser.Scene;
   private readonly zones: CheckpointZone[] = [];
-  private readonly insideIndices = new Set<number>();
+  private readonly insideByRacer = new Map<RacerId, Set<number>>();
   private enabled = true;
 
   constructor(scene: Phaser.Scene) {
@@ -66,31 +66,37 @@ export class CheckpointSystem {
     });
   }
 
-  onEnter?: (index: number) => void;
-  onExit?: (index: number) => void;
+  onEnter?: (racerId: RacerId, index: number) => void;
+  onExit?: (racerId: RacerId, index: number) => void;
 
-  update(playerX: number, playerY: number): void {
+  updateRacer(racerId: RacerId, x: number, y: number): void {
     if (!this.enabled) return;
+
+    let insideSet = this.insideByRacer.get(racerId);
+    if (!insideSet) {
+      insideSet = new Set();
+      this.insideByRacer.set(racerId, insideSet);
+    }
 
     this.zones.forEach((zone) => {
       const { definition } = zone;
       const inside = isInsideRotatedRect(
-        playerX,
-        playerY,
+        x,
+        y,
         definition.x,
         definition.y,
         definition.width,
         definition.height,
         definition.rotation,
       );
-      const wasInside = this.insideIndices.has(definition.index);
+      const wasInside = insideSet!.has(definition.index);
 
       if (inside && !wasInside) {
-        this.insideIndices.add(definition.index);
-        this.onEnter?.(definition.index);
+        insideSet!.add(definition.index);
+        this.onEnter?.(racerId, definition.index);
       } else if (!inside && wasInside) {
-        this.insideIndices.delete(definition.index);
-        this.onExit?.(definition.index);
+        insideSet!.delete(definition.index);
+        this.onExit?.(racerId, definition.index);
       }
     });
   }
@@ -98,12 +104,12 @@ export class CheckpointSystem {
   setEnabled(value: boolean): void {
     this.enabled = value;
     if (!value) {
-      this.insideIndices.clear();
+      this.insideByRacer.clear();
     }
   }
 
   reset(): void {
-    this.insideIndices.clear();
+    this.insideByRacer.clear();
   }
 
   setDebugVisible(visible: boolean): void {
@@ -123,6 +129,6 @@ export class CheckpointSystem {
       zone.label.destroy();
     });
     this.zones.length = 0;
-    this.insideIndices.clear();
+    this.insideByRacer.clear();
   }
 }

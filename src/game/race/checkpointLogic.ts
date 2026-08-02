@@ -4,6 +4,8 @@ import type {
   CheckpointProgress,
   RaceProgress,
   RacePhase,
+  RacerRaceProgress,
+  RacerCheckpointEvent,
 } from './raceTypes';
 
 export function createCheckpointProgress(): CheckpointProgress {
@@ -23,6 +25,129 @@ export function createRaceProgress(totalLaps: number): RaceProgress {
     completedCheckpoints: 0,
     elapsedTimeMs: 0,
     finalTimeMs: null,
+  };
+}
+
+export function createRacerRaceProgress(totalLaps: number): RacerRaceProgress {
+  return {
+    currentLap: 1,
+    totalLaps,
+    nextCheckpointIndex: 0,
+    completedCheckpoints: 0,
+    finished: false,
+    finishTimeMs: null,
+    finishPosition: null,
+    lapProgress: 0,
+    totalRaceProgress: 0,
+  };
+}
+
+export function processRacerCheckpointEntry(
+  checkpointProgress: CheckpointProgress,
+  racerProgress: RacerRaceProgress,
+  checkpointIndex: number,
+  definitions: readonly CheckpointDefinition[],
+  elapsedTimeMs: number,
+): {
+  checkpointProgress: CheckpointProgress;
+  racerProgress: RacerRaceProgress;
+  event: RacerCheckpointEvent;
+} {
+  if (racerProgress.finished) {
+    return { checkpointProgress, racerProgress, event: { type: 'ignored' } };
+  }
+
+  if (checkpointProgress.insideCheckpointIndex === checkpointIndex) {
+    return { checkpointProgress, racerProgress, event: { type: 'ignored' } };
+  }
+
+  const definition = definitions.find((cp) => cp.index === checkpointIndex);
+  if (!definition) {
+    return { checkpointProgress, racerProgress, event: { type: 'ignored' } };
+  }
+
+  const entered: CheckpointProgress = {
+    ...checkpointProgress,
+    insideCheckpointIndex: checkpointIndex,
+  };
+
+  if (definition.isFinishLine) {
+    if (!checkpointProgress.hasLeftStartZone) {
+      return { checkpointProgress: entered, racerProgress, event: { type: 'ignored' } };
+    }
+
+    if (checkpointIndex !== checkpointProgress.nextCheckpointIndex) {
+      return {
+        checkpointProgress: entered,
+        racerProgress,
+        event: { type: 'missed_checkpoint' },
+      };
+    }
+
+    const nextLap = racerProgress.currentLap + 1;
+    const isRaceComplete = racerProgress.currentLap >= racerProgress.totalLaps;
+
+    const updatedRacer: RacerRaceProgress = {
+      ...racerProgress,
+      currentLap: isRaceComplete ? racerProgress.currentLap : nextLap,
+      nextCheckpointIndex: 0,
+      completedCheckpoints: 0,
+      finished: isRaceComplete,
+      finishTimeMs: isRaceComplete ? elapsedTimeMs : null,
+    };
+
+    const resetCheckpoints: CheckpointProgress = {
+      ...entered,
+      nextCheckpointIndex: 0,
+      insideCheckpointIndex: null,
+      hasLeftStartZone: true,
+    };
+
+    if (isRaceComplete) {
+      return {
+        checkpointProgress: resetCheckpoints,
+        racerProgress: updatedRacer,
+        event: { type: 'racer_finished', finalLap: racerProgress.currentLap },
+      };
+    }
+
+    return {
+      checkpointProgress: resetCheckpoints,
+      racerProgress: updatedRacer,
+      event: { type: 'lap_completed', lap: racerProgress.currentLap },
+    };
+  }
+
+  if (checkpointIndex !== checkpointProgress.nextCheckpointIndex) {
+    return { checkpointProgress: entered, racerProgress, event: { type: 'ignored' } };
+  }
+
+  const nextIndex = checkpointIndex + 1;
+  const updatedCheckpoints: CheckpointProgress = {
+    ...entered,
+    nextCheckpointIndex: nextIndex,
+  };
+
+  const updatedRacer: RacerRaceProgress = {
+    ...racerProgress,
+    nextCheckpointIndex: nextIndex,
+    completedCheckpoints: racerProgress.completedCheckpoints + 1,
+  };
+
+  return {
+    checkpointProgress: updatedCheckpoints,
+    racerProgress: updatedRacer,
+    event: { type: 'advanced', index: checkpointIndex },
+  };
+}
+
+export function resetRacerState(totalLaps: number): {
+  racerProgress: RacerRaceProgress;
+  checkpointProgress: CheckpointProgress;
+} {
+  return {
+    racerProgress: createRacerRaceProgress(totalLaps),
+    checkpointProgress: createCheckpointProgress(),
   };
 }
 

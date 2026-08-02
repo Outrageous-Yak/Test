@@ -64,27 +64,27 @@ Backward navigation retains all valid selections. Selections persist across relo
 **Phase 3** ✅ Car selection  
 **Phase 4** ✅ Track selection & race loading  
 **Phase 5** ✅ First playable driving prototype  
-**Phase 6** ✅ Race rules, checkpoints, laps, timer, and finish state
+**Phase 6** ✅ Race rules, checkpoints, laps, timer, and finish state  
+**Phase 7** ✅ AI opponents, race position, and finishing order
 
-Phase 6 implemented:
+Phase 7 implemented:
 
-- Pre-race countdown (3, 2, 1, GO!) with input lock until GO
-- Ordered checkpoint system around Mango Meadows (8 zones)
-- Three-lap race with start-line exploit protection
-- Race timer (`mm:ss.mmm`) with pause/resume support
-- Race HUD (lap counter + elapsed time)
-- Wrong-way detection with sustained feedback
-- Missed-checkpoint protection at finish line
-- Finish state and results panel (RACE AGAIN / MAIN MENU)
-- Expanded debug mode (checkpoint zones, indices, race phase)
-- Version **0.6.0**
+- Three AI racers (Citrus, Pepper, Berry) with distinct driving profiles
+- Four-car starting grid on Mango Meadows
+- AI path-following with rubber-banding and stuck recovery
+- Independent checkpoint and lap tracking per racer
+- Live player position HUD (1 / 4)
+- Car-to-car collisions
+- Full four-racer finishing order in results
+- Post-player-finish timeout with DNF classification
+- Version **0.7.0**
 
 ## Roadmap
 
 | Phase | Focus |
 |-------|-------|
-| **Phase 0–6** | Complete ✅ |
-| **Phase 7** | AI opponents, race positions, progression |
+| **Phase 0–7** | Complete ✅ |
+| **Phase 8** | Progression, unlocks, audio, polish |
 
 ## Deployment
 
