@@ -11,6 +11,10 @@ describe('raceConstants', () => {
 
   it('has sensible driving tuning values', () => {
     expect(DRIVING.MAX_SPEED).toBeGreaterThan(0);
+    expect(DRIVING.MAX_REVERSE_SPEED).toBeGreaterThan(0);
+    expect(DRIVING.MAX_REVERSE_SPEED).toBeLessThan(DRIVING.MAX_SPEED);
+    expect(DRIVING.REVERSE_SPEED_RATIO).toBeGreaterThan(0.35);
+    expect(DRIVING.REVERSE_SPEED_RATIO).toBeLessThan(0.5);
     expect(DRIVING.ACCELERATION).toBeGreaterThan(0);
     expect(DRIVING.BRAKE_FORCE).toBeGreaterThan(DRIVING.FRICTION);
     expect(DRIVING.TURN_RATE).toBeGreaterThan(0);

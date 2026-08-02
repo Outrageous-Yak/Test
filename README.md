@@ -48,7 +48,7 @@ Backward navigation retains all valid selections. Selections persist across relo
 | Car Select | ← Mango Car, → Red Car, Enter, Esc |
 | Track Select | ← prev unlocked, → next unlocked, Enter, Esc |
 | Race Loading | Enter (START RACE), Esc |
-| Race | Nudge pad steer (analog), ↓ brake, D debug, Esc pause |
+| Race | Nudge pad (bottom-right): down = accelerate, up = brake/reverse, left/right = steer; W/↑ forward, S/↓ brake/reverse, A/← left, D/→ right; F3 debug, Esc pause |
 
 ## Tracks
 

@@ -2,14 +2,16 @@ import Phaser from 'phaser';
 import { FONTS } from '../constants';
 import {
   computePadGeometry,
+  controlsFromNudgeVector,
+  getNudgeActionLabel,
   knobRadius,
-  speedForMagnitude,
-  steerFromNudgeVector,
   vectorFromTouch,
-  vectorMagnitude,
   type NudgeVector,
   type PadGeometry,
+  type ReverseLatchState,
 } from './nudgePadLogic';
+import type { DriveIntent } from './raceInput';
+import { ZERO_DRIVE_INTENT } from './raceInput';
 
 const NUDGE_PAD_COLORS = {
   BACKGROUND: 0x141821,
@@ -41,18 +43,17 @@ export interface NudgePadOptions {
 }
 
 /**
- * Continuous 360-degree steering pad — Phaser reimplementation of the reference
- * nudge pad visual and touch behaviour (analog vector + magnitude tiers).
+ * Continuous 360-degree driving pad — Phaser rendering and pointer handling.
  */
 export class NudgePad {
+  private readonly scene: Phaser.Scene;
   private readonly container: Phaser.GameObjects.Container;
   private readonly graphics: Phaser.GameObjects.Graphics;
   private readonly titleLabel: Phaser.GameObjects.Text;
   private readonly speedLabel: Phaser.GameObjects.Text;
-  private readonly hitZone: Phaser.GameObjects.Rectangle;
+  private readonly hitZone: Phaser.GameObjects.Arc;
   private readonly panelWidth: number;
   private readonly panelHeight: number;
-  private readonly title: string;
 
   private active = false;
   private vector: NudgeVector = { x: 0, y: 0 };
@@ -61,10 +62,10 @@ export class NudgePad {
   private pointerId: number | null = null;
 
   constructor(scene: Phaser.Scene, options: NudgePadOptions) {
+    this.scene = scene;
     this.panelWidth = options.width;
     this.panelHeight = options.height;
-    this.title = options.title ?? 'STEER';
-
+    const title = options.title ?? 'DRIVE';
     const depth = options.depth ?? 1000;
 
     this.container = scene.add.container(options.x, options.y).setScrollFactor(0).setDepth(depth);
@@ -75,7 +76,7 @@ export class NudgePad {
 
     this.graphics = scene.add.graphics();
     this.titleLabel = scene.add
-      .text(0, -this.panelHeight / 2 + 17, this.title, {
+      .text(0, -this.panelHeight / 2 + 17, title, {
         fontFamily: FONTS.PRIMARY,
         fontSize: '15px',
         color: NUDGE_PAD_COLORS.TITLE,
@@ -84,7 +85,7 @@ export class NudgePad {
       .setOrigin(0.5, 0.5);
 
     this.speedLabel = scene.add
-      .text(0, this.panelHeight / 2 - 16, 'STOP', {
+      .text(0, this.panelHeight / 2 - 16, 'COAST', {
         fontFamily: FONTS.PRIMARY,
         fontSize: '10px',
         color: NUDGE_PAD_COLORS.SPEED,
@@ -92,31 +93,31 @@ export class NudgePad {
       })
       .setOrigin(0.5, 0.5);
 
+    const geometry = computePadGeometry(this.panelWidth, this.panelHeight);
+    const hitRadius = geometry.radius + 8;
     this.hitZone = scene.add
-      .rectangle(0, 0, this.panelWidth, this.panelHeight, 0xffffff, 0.001)
-      .setOrigin(0.5)
-      .setInteractive({ useHandCursor: false });
+      .circle(0, geometry.cy - this.panelHeight / 2, hitRadius, 0xffffff, 0.001)
+      .setInteractive(
+        new Phaser.Geom.Circle(0, geometry.cy - this.panelHeight / 2, hitRadius),
+        Phaser.Geom.Circle.Contains,
+      );
 
     this.container.add([background, this.graphics, this.titleLabel, this.speedLabel, this.hitZone]);
 
     this.hitZone.on('pointerdown', this.onPointerDown, this);
-    this.hitZone.on('pointermove', this.onPointerMove, this);
-    this.hitZone.on('pointerup', this.onPointerUp, this);
-    this.hitZone.on('pointerupoutside', this.onPointerUp, this);
 
     this.redraw();
   }
 
-  tick(_deltaMs: number): void {
-    if (!this.active) return;
-
-    const tier = speedForMagnitude(vectorMagnitude(this.vector));
-    this.speedLabel.setText(tier.label);
+  updateActionLabel(intent: DriveIntent, signedSpeed: number, latch: ReverseLatchState): void {
+    this.speedLabel.setText(getNudgeActionLabel(intent, signedSpeed, latch));
   }
 
-  getSteer(): number {
-    if (!this.enabled) return 0;
-    return steerFromNudgeVector(this.vector);
+  getDriveIntent(): DriveIntent {
+    if (!this.enabled || !this.active) {
+      return { ...ZERO_DRIVE_INTENT };
+    }
+    return controlsFromNudgeVector(this.vector);
   }
 
   getVector(): Readonly<NudgeVector> {
@@ -149,10 +150,8 @@ export class NudgePad {
   }
 
   destroy(): void {
+    this.detachSceneListeners();
     this.hitZone.off('pointerdown', this.onPointerDown, this);
-    this.hitZone.off('pointermove', this.onPointerMove, this);
-    this.hitZone.off('pointerup', this.onPointerUp, this);
-    this.hitZone.off('pointerupoutside', this.onPointerUp, this);
     this.container.destroy(true);
   }
 
@@ -162,7 +161,12 @@ export class NudgePad {
     if (!this.enabled) {
       this.hitZone.disableInteractive();
     } else {
-      this.hitZone.setInteractive({ useHandCursor: false });
+      const geometry = this.localPadGeometry();
+      const hitRadius = geometry.radius + 8;
+      this.hitZone.setInteractive(
+        new Phaser.Geom.Circle(0, geometry.cy - this.panelHeight / 2, hitRadius),
+        Phaser.Geom.Circle.Contains,
+      );
     }
   }
 
@@ -171,27 +175,41 @@ export class NudgePad {
   }
 
   private onPointerDown(pointer: Phaser.Input.Pointer): void {
-    if (!this.enabled) return;
+    if (!this.enabled || this.active) return;
     this.active = true;
     this.pointerId = pointer.id;
+    this.attachSceneListeners();
     this.updateFromPointer(pointer);
   }
 
-  private onPointerMove(pointer: Phaser.Input.Pointer): void {
+  private onScenePointerMove(pointer: Phaser.Input.Pointer): void {
     if (!this.enabled || !this.active || this.pointerId !== pointer.id) return;
     this.updateFromPointer(pointer);
   }
 
-  private onPointerUp(pointer: Phaser.Input.Pointer): void {
+  private onScenePointerUp(pointer: Phaser.Input.Pointer): void {
     if (this.pointerId !== null && pointer.id !== this.pointerId) return;
     this.resetPad();
+  }
+
+  private attachSceneListeners(): void {
+    this.scene.input.on('pointermove', this.onScenePointerMove, this);
+    this.scene.input.on('pointerup', this.onScenePointerUp, this);
+    this.scene.input.on('pointerupoutside', this.onScenePointerUp, this);
+  }
+
+  private detachSceneListeners(): void {
+    this.scene.input.off('pointermove', this.onScenePointerMove, this);
+    this.scene.input.off('pointerup', this.onScenePointerUp, this);
+    this.scene.input.off('pointerupoutside', this.onScenePointerUp, this);
   }
 
   private resetPad(): void {
     this.active = false;
     this.pointerId = null;
     this.vector = { x: 0, y: 0 };
-    this.speedLabel.setText('STOP');
+    this.speedLabel.setText('COAST');
+    this.detachSceneListeners();
     this.redraw();
   }
 

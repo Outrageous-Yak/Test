@@ -133,6 +133,8 @@ export class RaceScene extends Phaser.Scene {
       loaded.definition.camera,
     );
     this.touchControls = new TouchControls(this);
+    this.touchControls.setEnabled(false);
+    this.touchControls.setDimmed(true);
     this.countdown = new CountdownController(this);
     this.raceHud = new RaceHud(this);
     this.messages = new RaceMessageController(this);
@@ -172,10 +174,10 @@ export class RaceScene extends Phaser.Scene {
 
     if (phase === 'paused') return;
 
-    this.touchControls.tick(delta);
-
     const player = this.participantManager.getPlayerParticipant();
-    const input = this.touchControls.getInput();
+    const signedSpeed = player.car.getSignedSpeed();
+    this.touchControls.tick(signedSpeed);
+    const input = this.touchControls.getInput(signedSpeed);
     const updateResult = this.participantManager.update(delta, input);
 
     this.checkpointSystem?.setEnabled(updateResult.canProcessCheckpoints);
@@ -243,7 +245,7 @@ export class RaceScene extends Phaser.Scene {
   }
 
   private setupInput(): void {
-    this.debugKey = this.input.keyboard?.addKey(Phaser.Input.Keyboard.KeyCodes.D);
+    this.debugKey = this.input.keyboard?.addKey(Phaser.Input.Keyboard.KeyCodes.F3);
     this.pauseKey = this.input.keyboard?.addKey(Phaser.Input.Keyboard.KeyCodes.ESC);
   }
 
@@ -271,6 +273,8 @@ export class RaceScene extends Phaser.Scene {
       onGo: () => {
         GameState.recordRaceStarted();
         this.participantManager?.onGo();
+        this.touchControls?.setEnabled(true);
+        this.touchControls?.setDimmed(false);
       },
       onComplete: () => undefined,
     });

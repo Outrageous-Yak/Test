@@ -1,5 +1,19 @@
 /** Pure helpers for the 360-degree nudge pad (testable, no Phaser deps). */
 
+import type { DriveIntent, RaceInput } from './raceInput';
+import { ZERO_DRIVE_INTENT, ZERO_RACE_INPUT } from './raceInput';
+
+export const NUDGE_DEAD_ZONE = 0.1;
+
+export const BRAKE_REVERSE = {
+  /** Forward speed above this applies braking only (px/s along facing). */
+  FORWARD_BRAKE_THRESHOLD: 28,
+  /** Forward speed below this allows reverse engagement (px/s). */
+  REVERSE_ENGAGE_THRESHOLD: 15,
+  /** Treat as reversing when signed speed is below this (px/s). */
+  REVERSING_SPEED: -8,
+} as const;
+
 export function clamp(v: number, lo: number, hi: number): number {
   return Math.max(lo, Math.min(hi, v));
 }
@@ -52,44 +66,152 @@ export function vectorMagnitude(vector: NudgeVector): number {
   return Math.hypot(vector.x, vector.y);
 }
 
-export interface SpeedTier {
-  speed: number;
-  label: string;
-}
-
-export function speedForMagnitude(magnitude: number): SpeedTier {
-  if (magnitude < 0.08) return { speed: 0, label: 'STOP' };
-  if (magnitude < 0.25) return { speed: 1, label: 'FINE' };
-  if (magnitude < 0.45) return { speed: 3, label: 'SLOW' };
-  if (magnitude < 0.65) return { speed: 8, label: 'MED' };
-  if (magnitude < 0.85) return { speed: 20, label: 'FAST' };
-  return { speed: 50, label: 'MAX' };
-}
-
-/** Horizontal steering from pad deflection; dead-zones small nudges near centre. */
-export function steerFromNudgeVector(vector: NudgeVector): number {
-  if (vectorMagnitude(vector) < 0.08) return 0;
-  return vector.x;
-}
-
-/** Movement delta per tick (matches reference callback distance = speed * dt * 10). */
-export function movementDelta(
+/**
+ * Radial dead zone with smooth remapping so control ramps from zero at the edge
+ * of the dead zone to full strength at the pad rim.
+ */
+export function applyRadialDeadZone(
   vector: NudgeVector,
-  speed: number,
-  deltaSeconds: number,
+  deadZone: number = NUDGE_DEAD_ZONE,
 ): NudgeVector {
   const magnitude = vectorMagnitude(vector);
-  if (speed <= 0 || magnitude <= 0) {
+  if (magnitude <= deadZone) {
     return { x: 0, y: 0 };
   }
 
-  const distance = speed * deltaSeconds * 10;
+  const remapped = (magnitude - deadZone) / (1 - deadZone);
+  const scale = remapped / magnitude;
   return {
-    x: (vector.x / magnitude) * distance,
-    y: (vector.y / magnitude) * distance,
+    x: vector.x * scale,
+    y: vector.y * scale,
   };
+}
+
+/**
+ * Map normalized pad vector to driving axes.
+ * Screen Y is positive downward: down = throttle, up = brake/reverse demand.
+ */
+export function controlsFromNudgeVector(vector: NudgeVector): DriveIntent {
+  const dead = applyRadialDeadZone(vector);
+  return {
+    steer: clamp(dead.x, -1, 1),
+    throttle: clamp(dead.y, 0, 1),
+    upwardDemand: clamp(-dead.y, 0, 1),
+  };
+}
+
+export interface ReverseLatchState {
+  allowReverse: boolean;
+}
+
+export function createReverseLatchState(): ReverseLatchState {
+  return { allowReverse: false };
+}
+
+export interface BrakeReverseResult {
+  brake: number;
+  reverse: number;
+  latch: ReverseLatchState;
+}
+
+/**
+ * Split upward pad demand into brake vs reverse using forward speed hysteresis.
+ */
+export function resolveBrakeAndReverse(
+  upwardDemand: number,
+  signedSpeed: number,
+  latch: ReverseLatchState,
+): BrakeReverseResult {
+  if (upwardDemand <= 0) {
+    return {
+      brake: 0,
+      reverse: 0,
+      latch: { allowReverse: signedSpeed <= BRAKE_REVERSE.REVERSE_ENGAGE_THRESHOLD },
+    };
+  }
+
+  const nextLatch = { ...latch };
+
+  if (signedSpeed > BRAKE_REVERSE.FORWARD_BRAKE_THRESHOLD) {
+    nextLatch.allowReverse = false;
+    return { brake: upwardDemand, reverse: 0, latch: nextLatch };
+  }
+
+  if (signedSpeed < BRAKE_REVERSE.REVERSING_SPEED) {
+    nextLatch.allowReverse = true;
+    return { brake: 0, reverse: upwardDemand, latch: nextLatch };
+  }
+
+  if (signedSpeed <= BRAKE_REVERSE.REVERSE_ENGAGE_THRESHOLD) {
+    nextLatch.allowReverse = true;
+  }
+
+  if (nextLatch.allowReverse) {
+    return { brake: 0, reverse: upwardDemand, latch: nextLatch };
+  }
+
+  return { brake: upwardDemand, reverse: 0, latch: nextLatch };
+}
+
+export function buildRaceInputFromIntent(
+  intent: DriveIntent,
+  signedSpeed: number,
+  latch: ReverseLatchState,
+): { input: RaceInput; latch: ReverseLatchState } {
+  const { brake, reverse, latch: nextLatch } = resolveBrakeAndReverse(
+    intent.upwardDemand,
+    signedSpeed,
+    latch,
+  );
+
+  return {
+    input: {
+      steer: intent.steer,
+      throttle: intent.throttle,
+      brake,
+      reverse,
+    },
+    latch: nextLatch,
+  };
+}
+
+
+export function getNudgeActionLabel(
+  intent: DriveIntent,
+  signedSpeed: number,
+  latch: ReverseLatchState,
+): string {
+  const { brake, reverse } = resolveBrakeAndReverse(intent.upwardDemand, signedSpeed, latch);
+
+  if (reverse > 0.05) return 'REVERSE';
+  if (brake > 0.05) return 'BRAKE';
+
+  if (intent.throttle > 0.85) return 'MAX';
+  if (intent.throttle > 0.65) return 'HIGH';
+  if (intent.throttle > 0.45) return 'MED';
+  if (intent.throttle > 0.08) return 'LOW';
+  return 'COAST';
 }
 
 export function knobRadius(padRadius: number): number {
   return Math.max(12, Math.min(20, padRadius * 0.16));
 }
+
+export function isZeroRaceInput(input: RaceInput): boolean {
+  return (
+    input.steer === 0 &&
+    input.throttle === 0 &&
+    input.brake === 0 &&
+    input.reverse === 0
+  );
+}
+
+export function isZeroDriveIntent(intent: DriveIntent): boolean {
+  return (
+    intent.steer === 0 &&
+    intent.throttle === 0 &&
+    intent.upwardDemand === 0
+  );
+}
+
+export { ZERO_DRIVE_INTENT, ZERO_RACE_INPUT };
