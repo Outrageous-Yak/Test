@@ -11,7 +11,7 @@ A fun, colourful, mobile-first arcade racing game designed primarily for iPhone.
 | [Phaser 3](https://phaser.io/) | HTML5 game framework |
 | HTML5 Canvas | Rendering |
 | CSS | Layout, safe areas, rotation overlay |
-| Local Storage | Future save data (not yet implemented) |
+| Local Storage | Settings and game-state persistence |
 
 ## Installation
 
@@ -45,24 +45,36 @@ Preview the production build locally:
 npm run preview
 ```
 
+## Testing
+
+```bash
+npm test
+```
+
+Runs unit tests for the save system and state merging logic.
+
 ## Folder Overview
 
 ```text
 src/
-  main.ts                 # Entry point — creates Phaser game instance
+  main.ts                 # Entry point — initialises state and Phaser game
   game/
     config.ts             # Phaser game configuration
     constants.ts          # Shared constants (dimensions, colours, paths)
     types.ts              # TypeScript type definitions
+    state/
+      GameState.ts        # Central singleton game state
+    systems/
+      SaveSystem.ts       # Versioned local-storage persistence
     scenes/
       BootScene.ts        # Initial setup, transitions to Preload
       PreloadScene.ts     # Asset loading (placeholder locations)
-      MainMenuScene.ts    # Temporary main menu (Phase 0)
+      MainMenuScene.ts    # Main menu with modal panels
+      CharacterSelectScene.ts  # Phase 1 placeholder for character select
     entities/             # Future: cars, characters
     tracks/               # Future: track definitions
-    ui/                   # Reusable UI components (TouchButton)
+    ui/                   # TouchButton, MenuPanel
     audio/                # Future: audio management
-    systems/              # Future: game systems
     utils/                # Helper functions
   assets/
     images/               # Future: sprite and texture assets
@@ -80,32 +92,39 @@ public/
 
 ## Current Phase
 
-**Phase 0 — Foundation & Project Setup (v1.0)** ✅
+**Phase 0 — Foundation & Project Setup** ✅
 
-Implemented:
+**Phase 1 — Main Menu & Core Game State** ✅
 
-- Vite + TypeScript + Phaser 3 project scaffold
-- Boot, Preload, and Main Menu scenes
-- Touch-friendly START button (mouse, touch, Enter key)
-- Responsive canvas scaling with aspect ratio preservation
-- iPhone safe area support
-- Portrait rotation prompt
-- PWA manifest and service worker
-- GitHub Actions deployment to GitHub Pages
+Phase 1 implemented:
+
+- Polished main menu (PLAY, GARAGE, HOW TO PLAY, SETTINGS, CREDITS)
+- Modal panels for Garage, How to Play, Settings, and Credits
+- `CharacterSelectScene` placeholder (PLAY → choose racer → BACK)
+- Central `GameState` singleton for selections, unlocks, coins, and settings
+- `SaveSystem` with versioned local storage (`mango-ruby-racing-save-v1`)
+- Functional settings toggles (music, sound, vibration, control style) with persistence
+- Extended `TouchButton` with disabled state and listener cleanup
+- Reusable `MenuPanel` overlay component
+
+### State Architecture
+
+Game state is accessed via a typed singleton (`GameState`) in `src/game/state/GameState.ts`. State is loaded from local storage on startup and persisted automatically when settings or selections change. Scenes import `GameState` directly — no parameter passing or external state library.
 
 Not yet implemented (by design):
 
-- Characters, cars, tracks, physics, AI, audio, gameplay
+- Character selection UI, cars, tracks, physics, AI, audio playback, gameplay
 
 ## Planned Roadmap
 
 | Phase | Focus |
 |-------|-------|
 | **Phase 0** | Foundation & project setup ✅ |
-| **Phase 1** | Core racing loop — track, cars, controls, lap counting |
-| **Phase 2** | Characters (Mango & Ruby), polish, audio |
-| **Phase 3** | Power-ups, boost, AI opponents |
-| **Phase 4** | Garage, settings, save system, leaderboards |
+| **Phase 1** | Main menu & core game state ✅ |
+| **Phase 2** | Character selection, artwork, audio |
+| **Phase 3** | Core racing loop — track, cars, controls, lap counting |
+| **Phase 4** | Power-ups, boost, AI opponents |
+| **Phase 5** | Garage upgrades, leaderboards |
 
 ## Deployment
 
@@ -118,8 +137,6 @@ The project deploys automatically to GitHub Pages when changes are merged into `
 3. Merge to `main` — the workflow builds and deploys automatically.
 
 ### Live URL
-
-Once enabled, the game is available at:
 
 **https://outrageous-yak.github.io/Test/**
 

@@ -2,6 +2,10 @@ import './styles/main.css';
 import Phaser from 'phaser';
 import { createGameConfig } from './game/config';
 import { isPortrait } from './game/utils/helpers';
+import { GameState } from './game/state/GameState';
+
+// Initialise persisted state before the game boots
+void GameState.getState();
 
 const gameContainer = document.getElementById('game-container');
 
