@@ -3,6 +3,7 @@ import {
   type GameSettings,
   type SerializableGameState,
 } from '../state/gameStateTypes';
+import { parseCharacterId, filterUnlockedCharacterIds } from '../data/characters';
 
 export const STORAGE_KEY = 'mango-ruby-racing-save-v1';
 
@@ -38,14 +39,22 @@ function parseSettings(raw: unknown): Partial<GameSettings> {
  * are always present without breaking existing saves.
  */
 export function mergeWithDefaults(partial: Partial<SerializableGameState>): SerializableGameState {
+  const unlockedFromSave = isStringArray(partial.unlockedCharacters)
+    ? filterUnlockedCharacterIds(partial.unlockedCharacters)
+    : [];
+
   return {
-    selectedCharacter: partial.selectedCharacter ?? DEFAULT_GAME_STATE.selectedCharacter,
+    selectedCharacter:
+      partial.selectedCharacter === null
+        ? null
+        : parseCharacterId(partial.selectedCharacter) ?? DEFAULT_GAME_STATE.selectedCharacter,
     selectedCar: partial.selectedCar ?? DEFAULT_GAME_STATE.selectedCar,
     selectedTrack: partial.selectedTrack ?? DEFAULT_GAME_STATE.selectedTrack,
     coins: typeof partial.coins === 'number' && partial.coins >= 0 ? partial.coins : DEFAULT_GAME_STATE.coins,
-    unlockedCharacters: isStringArray(partial.unlockedCharacters)
-      ? partial.unlockedCharacters
-      : [...DEFAULT_GAME_STATE.unlockedCharacters],
+    unlockedCharacters:
+      unlockedFromSave.length > 0
+        ? unlockedFromSave
+        : [...DEFAULT_GAME_STATE.unlockedCharacters],
     unlockedCars: isStringArray(partial.unlockedCars)
       ? partial.unlockedCars
       : [...DEFAULT_GAME_STATE.unlockedCars],

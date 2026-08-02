@@ -51,7 +51,7 @@ npm run preview
 npm test
 ```
 
-Runs unit tests for the save system and state merging logic.
+Runs unit tests for character data, save system, and state merging logic.
 
 ## Folder Overview
 
@@ -62,20 +62,24 @@ src/
     config.ts             # Phaser game configuration
     constants.ts          # Shared constants (dimensions, colours, paths)
     types.ts              # TypeScript type definitions
+    data/
+      characters.ts       # Mango & Ruby character definitions
     state/
       GameState.ts        # Central singleton game state
+      gameStateTypes.ts   # Serializable state types and defaults
     systems/
       SaveSystem.ts       # Versioned local-storage persistence
     scenes/
       BootScene.ts        # Initial setup, transitions to Preload
       PreloadScene.ts     # Asset loading (placeholder locations)
       MainMenuScene.ts    # Main menu with modal panels
-      CharacterSelectScene.ts  # Phase 1 placeholder for character select
+      CharacterSelectScene.ts  # Mango & Ruby character selection
+      CarSelectScene.ts   # Phase 2 placeholder for car selection
     entities/             # Future: cars, characters
     tracks/               # Future: track definitions
-    ui/                   # TouchButton, MenuPanel
+    ui/                   # TouchButton, MenuPanel, CharacterCard
     audio/                # Future: audio management
-    utils/                # Helper functions
+    utils/                # Helpers, scene transitions, vibration
   assets/
     images/               # Future: sprite and texture assets
     audio/                # Future: sound and music files
@@ -96,16 +100,16 @@ public/
 
 **Phase 1 — Main Menu & Core Game State** ✅
 
-Phase 1 implemented:
+**Phase 2 — Character Selection & Selection Flow** ✅
 
-- Polished main menu (PLAY, GARAGE, HOW TO PLAY, SETTINGS, CREDITS)
-- Modal panels for Garage, How to Play, Settings, and Credits
-- `CharacterSelectScene` placeholder (PLAY → choose racer → BACK)
-- Central `GameState` singleton for selections, unlocks, coins, and settings
-- `SaveSystem` with versioned local storage (`mango-ruby-racing-save-v1`)
-- Functional settings toggles (music, sound, vibration, control style) with persistence
-- Extended `TouchButton` with disabled state and listener cleanup
-- Reusable `MenuPanel` overlay component
+Phase 2 implemented:
+
+- Mango and Ruby selectable character cards with placeholder portraits
+- `CharacterCard` reusable UI component (selected/locked states)
+- Selection updates `GameState.selectedCharacter` and persists via `SaveSystem`
+- CONTINUE disabled until a character is chosen; opens `CarSelectScene` placeholder
+- Keyboard: ← Mango, → Ruby, Enter continues, Esc goes back
+- Scene fade transitions; version bumped to **0.2.0**
 
 ### State Architecture
 
@@ -113,7 +117,7 @@ Game state is accessed via a typed singleton (`GameState`) in `src/game/state/Ga
 
 Not yet implemented (by design):
 
-- Character selection UI, cars, tracks, physics, AI, audio playback, gameplay
+- Final character artwork, car selection, tracks, physics, AI, audio playback, gameplay
 
 ## Planned Roadmap
 
@@ -121,8 +125,8 @@ Not yet implemented (by design):
 |-------|-------|
 | **Phase 0** | Foundation & project setup ✅ |
 | **Phase 1** | Main menu & core game state ✅ |
-| **Phase 2** | Character selection, artwork, audio |
-| **Phase 3** | Core racing loop — track, cars, controls, lap counting |
+| **Phase 2** | Character selection & selection flow ✅ |
+| **Phase 3** | Car selection, track select placeholder, core racing loop |
 | **Phase 4** | Power-ups, boost, AI opponents |
 | **Phase 5** | Garage upgrades, leaderboards |
 
@@ -150,6 +154,10 @@ The Vite `base` is set to `/Test/` to match the repository name on GitHub Pages.
 2. Tap the **Share** button.
 3. Tap **Add to Home Screen**.
 4. Launch from the home screen for a full-screen experience.
+
+## Dependency Audit
+
+Run `npm audit` to check for known vulnerabilities. As of Phase 2, any reported issues are in **development tooling only** (not included in the production bundle). See the Phase 2 PR description for the latest audit findings.
 
 ## License
 

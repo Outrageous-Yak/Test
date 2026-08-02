@@ -3,7 +3,7 @@ export const GAME_WIDTH = 1280;
 export const GAME_HEIGHT = 720;
 
 /** Application version shown in menu and credits */
-export const GAME_VERSION = '0.1.0';
+export const GAME_VERSION = '0.2.0';
 
 /** Minimum touch target size (Apple HIG recommendation) */
 export const MIN_TOUCH_TARGET = 48;
@@ -35,6 +35,7 @@ export const SCENE_KEYS = {
   PRELOAD: 'PreloadScene',
   MAIN_MENU: 'MainMenuScene',
   CHARACTER_SELECT: 'CharacterSelectScene',
+  CAR_SELECT: 'CarSelectScene',
 } as const;
 
 /** Font families */
