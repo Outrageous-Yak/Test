@@ -4,7 +4,9 @@ import {
   computePadGeometry,
   controlsFromNudgeVector,
   getNudgeActionLabel,
+  isPointerInsidePanel,
   knobRadius,
+  pointerToPanelCoords,
   vectorFromTouch,
   type NudgeVector,
   type PadGeometry,
@@ -49,43 +51,41 @@ export interface NudgePadOptions {
 }
 
 /**
- * Continuous 360-degree driving pad — Phaser rendering and pointer handling.
+ * Continuous 360-degree driving pad.
+ * Uses scene-level pointer routing (not container hit tests) for reliable mobile touch.
  */
 export class NudgePad {
   private readonly scene: Phaser.Scene;
-  private readonly container: Phaser.GameObjects.Container;
+  private readonly centerX: number;
+  private readonly centerY: number;
+  private readonly panelWidth: number;
+  private readonly panelHeight: number;
+  private readonly depth: number;
+  private readonly root: Phaser.GameObjects.Container;
   private readonly graphics: Phaser.GameObjects.Graphics;
   private readonly titleLabel: Phaser.GameObjects.Text;
   private readonly speedLabel: Phaser.GameObjects.Text;
-  private readonly panelWidth: number;
-  private readonly panelHeight: number;
-  private readonly panelHitArea: Phaser.Geom.Rectangle;
 
   private active = false;
   private vector: NudgeVector = { x: 0, y: 0 };
   private enabled = true;
   private dimmed = false;
   private pointerId: number | null = null;
+  private dragListenersAttached = false;
 
   constructor(scene: Phaser.Scene, options: NudgePadOptions) {
     this.scene = scene;
+    this.centerX = options.x;
+    this.centerY = options.y;
     this.panelWidth = options.width ?? NUDGE_PAD_WIDTH;
     this.panelHeight = options.height ?? NUDGE_PAD_HEIGHT;
+    this.depth = options.depth ?? NUDGE_PAD_DEPTH;
     const title = options.title ?? 'DRIVE';
-    const depth = options.depth ?? NUDGE_PAD_DEPTH;
 
-    this.panelHitArea = new Phaser.Geom.Rectangle(
-      -this.panelWidth / 2,
-      -this.panelHeight / 2,
-      this.panelWidth,
-      this.panelHeight,
-    );
-
-    this.container = scene.add
-      .container(options.x, options.y)
+    this.root = scene.add
+      .container(this.centerX, this.centerY)
       .setScrollFactor(0)
-      .setDepth(depth)
-      .setSize(this.panelWidth, this.panelHeight);
+      .setDepth(this.depth);
 
     const background = scene.add
       .rectangle(0, 0, this.panelWidth, this.panelHeight, NUDGE_PAD_COLORS.BACKGROUND, 1)
@@ -110,9 +110,9 @@ export class NudgePad {
       })
       .setOrigin(0.5, 0.5);
 
-    this.container.add([background, this.graphics, this.titleLabel, this.speedLabel]);
+    this.root.add([background, this.graphics, this.titleLabel, this.speedLabel]);
 
-    this.bindContainerInput();
+    this.scene.input.on('pointerdown', this.onGlobalPointerDown, this);
     this.redraw();
   }
 
@@ -136,7 +136,7 @@ export class NudgePad {
   }
 
   setVisible(visible: boolean): void {
-    this.container.setVisible(visible);
+    this.root.setVisible(visible);
   }
 
   setEnabled(enabled: boolean): void {
@@ -157,68 +157,58 @@ export class NudgePad {
   }
 
   destroy(): void {
-    this.detachSceneListeners();
-    this.container.off('pointerdown', this.onPointerDown, this);
-    this.container.destroy(true);
-  }
-
-  private bindContainerInput(): void {
-    this.container.setInteractive(this.panelHitArea, Phaser.Geom.Rectangle.Contains);
-    this.container.on('pointerdown', this.onPointerDown, this);
+    this.resetPad();
+    this.scene.input.off('pointerdown', this.onGlobalPointerDown, this);
+    this.root.destroy(true);
   }
 
   private applyDimState(): void {
     const alpha = !this.enabled || this.dimmed ? 0.4 : 1;
-    this.container.setAlpha(alpha);
-    if (!this.enabled) {
-      this.container.disableInteractive();
-    } else {
-      this.container.setInteractive(this.panelHitArea, Phaser.Geom.Rectangle.Contains);
-    }
+    this.root.setAlpha(alpha);
   }
 
-  private localPadGeometry(): PadGeometry {
-    return computePadGeometry(this.panelWidth, this.panelHeight);
-  }
-
-  private onPointerDown(
-    pointer: Phaser.Input.Pointer,
-    localX: number,
-    localY: number,
-  ): void {
-    if (!this.enabled) return;
+  private onGlobalPointerDown(pointer: Phaser.Input.Pointer): void {
+    if (!this.enabled || !this.root.visible) return;
     if (this.active && this.pointerId !== pointer.id) return;
+    if (!this.containsPointer(pointer)) return;
 
+    pointer.event?.stopPropagation();
+    this.beginPointer(pointer);
+  }
+
+  private beginPointer(pointer: Phaser.Input.Pointer): void {
     this.active = true;
     this.pointerId = pointer.id;
-    this.attachSceneListeners();
-    this.updateFromLocalPoint(localX, localY);
+    this.attachDragListeners();
+    this.updateFromPointer(pointer);
   }
 
-  private onScenePointerMove(pointer: Phaser.Input.Pointer): void {
+  private onDragPointerMove(pointer: Phaser.Input.Pointer): void {
     if (!this.enabled || !this.active || this.pointerId !== pointer.id) return;
-
-    const local = this.pointerToPanelCoords(pointer);
-    this.updateFromLocalPoint(local.x, local.y);
+    this.updateFromPointer(pointer);
   }
 
-  private onScenePointerUp(pointer: Phaser.Input.Pointer): void {
+  private onDragPointerUp(pointer: Phaser.Input.Pointer): void {
     if (this.pointerId !== null && pointer.id !== this.pointerId) return;
     this.resetPad();
   }
 
-  private attachSceneListeners(): void {
-    this.scene.input.on('pointermove', this.onScenePointerMove, this);
-    this.scene.input.on('pointerup', this.onScenePointerUp, this);
-    this.scene.input.on('pointerupoutside', this.onScenePointerUp, this);
-    this.scene.input.on('pointercancel', this.onScenePointerUp, this);
+  private attachDragListeners(): void {
+    if (this.dragListenersAttached) return;
+    this.dragListenersAttached = true;
+    this.scene.input.on('pointermove', this.onDragPointerMove, this);
+    this.scene.input.on('pointerup', this.onDragPointerUp, this);
+    this.scene.input.on('pointerupoutside', this.onDragPointerUp, this);
+    this.scene.input.on('pointercancel', this.onDragPointerUp, this);
   }
 
-  private detachSceneListeners(): void {
-    this.scene.input.off('pointermove', this.onScenePointerMove, this);
-    this.scene.input.off('pointerup', this.onScenePointerUp, this);
-    this.scene.input.off('pointerupoutside', this.onScenePointerUp, this);
-    this.scene.input.off('pointercancel', this.onScenePointerUp, this);
+  private detachDragListeners(): void {
+    if (!this.dragListenersAttached) return;
+    this.dragListenersAttached = false;
+    this.scene.input.off('pointermove', this.onDragPointerMove, this);
+    this.scene.input.off('pointerup', this.onDragPointerUp, this);
+    this.scene.input.off('pointerupoutside', this.onDragPointerUp, this);
+    this.scene.input.off('pointercancel', this.onDragPointerUp, this);
   }
 
   private resetPad(): void {
@@ -226,29 +216,37 @@ export class NudgePad {
     this.pointerId = null;
     this.vector = { x: 0, y: 0 };
     this.speedLabel.setText('COAST');
-    this.detachSceneListeners();
+    this.detachDragListeners();
     this.redraw();
   }
 
-  private pointerToPanelCoords(pointer: Phaser.Input.Pointer): { x: number; y: number } {
-    const local = new Phaser.Math.Vector2();
-    this.container.getLocalPoint(pointer.x, pointer.y, local);
-    return {
-      x: local.x + this.panelWidth / 2,
-      y: local.y + this.panelHeight / 2,
-    };
+  private containsPointer(pointer: Phaser.Input.Pointer): boolean {
+    return isPointerInsidePanel(
+      pointer.x,
+      pointer.y,
+      this.centerX,
+      this.centerY,
+      this.panelWidth,
+      this.panelHeight,
+    );
   }
 
-  private updateFromLocalPoint(localX: number, localY: number): void {
-    const panelX = localX + this.panelWidth / 2;
-    const panelY = localY + this.panelHeight / 2;
-    this.updateFromPanelCoords(panelX, panelY);
-  }
-
-  private updateFromPanelCoords(panelX: number, panelY: number): void {
+  private updateFromPointer(pointer: Phaser.Input.Pointer): void {
+    const panel = pointerToPanelCoords(
+      pointer.x,
+      pointer.y,
+      this.centerX,
+      this.centerY,
+      this.panelWidth,
+      this.panelHeight,
+    );
     const geometry = this.localPadGeometry();
-    this.vector = vectorFromTouch(panelX, panelY, geometry);
+    this.vector = vectorFromTouch(panel.x, panel.y, geometry);
     this.redraw();
+  }
+
+  private localPadGeometry(): PadGeometry {
+    return computePadGeometry(this.panelWidth, this.panelHeight);
   }
 
   private redraw(): void {
