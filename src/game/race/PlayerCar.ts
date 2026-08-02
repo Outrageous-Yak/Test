@@ -1,4 +1,9 @@
 import Phaser from 'phaser';
+import {
+  applyBarrierHitSpeed,
+  computeWallSlideVelocity,
+  steeringSpeedFactor,
+} from './drivingPhysics';
 import { DRIVING, RACE_COLORS } from './raceConstants';
 import type { RaceCarController } from './RaceCarController';
 import type { RaceInput } from './raceInput';
@@ -18,6 +23,8 @@ export class PlayerCar implements RaceCarController {
   private spawnY: number;
   private spawnAngle: number;
   private inputEnabled = true;
+  private lastThrottle = 0;
+  private wallScrapeMs = 0;
   private readonly forwardVector = new Phaser.Math.Vector2();
 
   constructor(scene: Phaser.Scene, x: number, y: number, angle: number, color: number = RACE_COLORS.CAR_DEFAULT) {
@@ -32,7 +39,7 @@ export class PlayerCar implements RaceCarController {
     scene.physics.add.existing(this.sprite);
     this.body = this.sprite.body as Phaser.Physics.Arcade.Body;
     this.body.setCollideWorldBounds(true);
-    this.body.setBounce(0.1, 0.1);
+    this.body.setBounce(0, 0);
     this.body.setDrag(0, 0);
     this.body.setMaxVelocity(DRIVING.MAX_SPEED, DRIVING.MAX_SPEED);
   }
@@ -64,6 +71,8 @@ export class PlayerCar implements RaceCarController {
     this.sprite.setPosition(x, y);
     this.sprite.setRotation(rotation);
     this.speed = 0;
+    this.lastThrottle = 0;
+    this.wallScrapeMs = 0;
     this.inputEnabled = true;
     this.body.setVelocity(0, 0);
     this.body.reset(x, y);
@@ -113,10 +122,24 @@ export class PlayerCar implements RaceCarController {
   }
 
   onBarrierHit(): void {
-    this.speed *= 0.55;
-    if (Math.abs(this.speed) < 20) {
-      this.speed = 0;
-    }
+    this.speed = applyBarrierHitSpeed({
+      speed: this.speed,
+      throttle: this.lastThrottle,
+      speedRetain: DRIVING.BARRIER_SPEED_RETAIN,
+      scrapeMinSpeed: DRIVING.BARRIER_SCRAPE_MIN_SPEED,
+      throttleFloor: DRIVING.BARRIER_THROTTLE_FLOOR,
+    });
+    this.wallScrapeMs = DRIVING.BARRIER_SCRAPE_DURATION_MS;
+
+    const slide = computeWallSlideVelocity({
+      bodyVx: this.body.velocity.x,
+      bodyVy: this.body.velocity.y,
+      facingAngle: this.sprite.rotation,
+      targetSpeed: this.speed,
+      lateralRetain: DRIVING.BARRIER_LATERAL_RETAIN,
+      forwardPush: DRIVING.BARRIER_FORWARD_PUSH,
+    });
+    this.body.setVelocity(slide.vx, slide.vy);
   }
 
   update(deltaMs: number, input: RaceInput): void {
@@ -126,6 +149,7 @@ export class PlayerCar implements RaceCarController {
     }
 
     const dt = deltaMs / 1000;
+    this.lastThrottle = input.throttle;
     const hasDriveInput = input.throttle > 0 || input.brake > 0 || input.reverse > 0;
 
     if (input.throttle > 0 && input.reverse <= 0) {
@@ -153,7 +177,20 @@ export class PlayerCar implements RaceCarController {
       }
     }
 
-    const speedFactor = Math.max(DRIVING.MIN_TURN_SPEED, Math.abs(this.speed) / DRIVING.MAX_SPEED);
+    if (this.wallScrapeMs > 0) {
+      this.wallScrapeMs = Math.max(0, this.wallScrapeMs - deltaMs);
+      if (input.throttle > 0.05) {
+        const scrapeFloor =
+          input.throttle * DRIVING.BARRIER_THROTTLE_FLOOR + DRIVING.BARRIER_SCRAPE_MIN_SPEED * 0.4;
+        this.speed = Math.max(this.speed, scrapeFloor);
+      }
+    }
+
+    const speedFactor = steeringSpeedFactor(
+      this.speed,
+      DRIVING.MAX_SPEED,
+      DRIVING.MIN_TURN_SPEED,
+    );
     const steerSign = this.speed < 0 ? -1 : 1;
     const turn = input.steer * steerSign * DRIVING.TURN_RATE * speedFactor * dt;
     this.sprite.rotation += turn;
