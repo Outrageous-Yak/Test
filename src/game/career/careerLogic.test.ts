@@ -5,6 +5,7 @@ import {
   computeFastestLapUpdate,
   getCoinsForPosition,
   getUnlockForWin,
+  isCareerComplete,
   isPodium,
   isWin,
   processRaceCareerOutcome,
@@ -142,5 +143,65 @@ describe('processRaceCareerOutcome', () => {
 
     expect(outcome.trackUnlocked).toBeNull();
     expect(outcome.coinsEarned).toBe(60);
+  });
+
+  it('marks Volcano Rush complete on win without unlocking another track', () => {
+    const outcome = processRaceCareerOutcome(
+      {
+        trackId: 'volcano-rush',
+        playerPosition: 1,
+        finishTimeMs: 130_000,
+        fastestLapMs: 35_000,
+        didFinish: true,
+      },
+      {},
+      ['mango-meadows', 'ruby-coast'],
+    );
+
+    expect(outcome.trackMarkedComplete).toBe(true);
+    expect(outcome.trackUnlocked).toBeNull();
+    expect(outcome.careerComplete).toBe(true);
+    expect(outcome.coinsEarned).toBe(100);
+  });
+
+  it('does not complete career with only two tracks', () => {
+    const outcome = processRaceCareerOutcome(
+      {
+        trackId: 'ruby-coast',
+        playerPosition: 1,
+        finishTimeMs: 100_000,
+        fastestLapMs: null,
+        didFinish: true,
+      },
+      {},
+      ['mango-meadows'],
+    );
+
+    expect(outcome.careerComplete).toBe(false);
+  });
+
+  it('does not mark Volcano Rush complete on second place', () => {
+    const outcome = processRaceCareerOutcome(
+      {
+        trackId: 'volcano-rush',
+        playerPosition: 2,
+        finishTimeMs: 140_000,
+        fastestLapMs: null,
+        didFinish: true,
+      },
+      {},
+      ['mango-meadows', 'ruby-coast'],
+    );
+
+    expect(outcome.trackMarkedComplete).toBe(false);
+    expect(outcome.careerComplete).toBe(false);
+  });
+});
+
+describe('isCareerComplete', () => {
+  it('requires all three tracks', () => {
+    expect(isCareerComplete(['mango-meadows'])).toBe(false);
+    expect(isCareerComplete(['mango-meadows', 'ruby-coast'])).toBe(false);
+    expect(isCareerComplete(['mango-meadows', 'ruby-coast', 'volcano-rush'])).toBe(true);
   });
 });

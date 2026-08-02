@@ -26,11 +26,19 @@ describe('raceValidation', () => {
     expect(getRaceLaunchRedirectScene()).toBeNull();
   });
 
-  it('rejects unlocked but unplayable Volcano Rush', () => {
+  it('allows unlocked Volcano Rush to launch', () => {
     GameState.setSelectedCharacter('mango');
     GameState.setSelectedCar('mango-car');
     GameState.unlockTrack('ruby-coast');
     GameState.unlockTrack('volcano-rush');
+    GameState.setSelectedTrack('volcano-rush');
+    expect(canLaunchRace()).toBe(true);
+    expect(getRaceLaunchRedirectScene()).toBeNull();
+  });
+
+  it('rejects locked Volcano Rush', () => {
+    GameState.setSelectedCharacter('mango');
+    GameState.setSelectedCar('mango-car');
     GameState.setSelectedTrack('volcano-rush');
     expect(canLaunchRace()).toBe(false);
     expect(getRaceLaunchRedirectScene()).toBe(SCENE_KEYS.TRACK_SELECT);

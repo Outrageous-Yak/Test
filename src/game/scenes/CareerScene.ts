@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import { SCENE_KEYS, COLORS, UI, FONTS } from '../constants';
 import { createTouchButton, type TouchButtonHandle } from '../ui/TouchButton';
-import { TRACKS, getTrackDisplayName } from '../data/tracks';
+import { TRACKS } from '../data/tracks';
 import { formatRaceTime } from '../race/formatRaceTime';
 import { GameState } from '../state/GameState';
 import { fadeInScene, fadeToScene } from '../utils/sceneTransition';
@@ -37,21 +37,15 @@ export class CareerScene extends Phaser.Scene {
 
     const state = GameState.getState();
     const stats = state.careerStatistics;
+    const careerComplete = GameState.isCareerComplete();
 
-    const bestTimeLines = TRACKS.map((track) => {
+    const trackLines = TRACKS.map((track) => {
+      const completed = state.completedTracks.includes(track.id);
       const best = state.bestTimes[track.id];
+      const status = completed ? 'Complete' : '—';
       const time = best !== undefined ? formatRaceTime(best) : '—';
-      return `${track.name}: ${time}`;
+      return `${track.name.padEnd(16)} ${status.padEnd(10)} Best ${time}`;
     }).join('\n');
-
-    const unlockedLines = state.unlockedTracks
-      .map((id) => getTrackDisplayName(id))
-      .join(', ');
-
-    const completedLines =
-      state.completedTracks.length > 0
-        ? state.completedTracks.map((id) => getTrackDisplayName(id)).join(', ')
-        : 'None yet';
 
     const fastestLap =
       stats.fastestLapMs !== null ? formatRaceTime(stats.fastestLapMs) : '—';
@@ -60,20 +54,19 @@ export class CareerScene extends Phaser.Scene {
       `Coins: ${state.coins}`,
       `Wins: ${stats.wins}`,
       `Races: ${stats.racesFinished} / ${stats.racesStarted} finished`,
-      '',
-      'Best Times',
-      bestTimeLines,
-      '',
-      `Unlocked Tracks: ${unlockedLines}`,
-      `Completed Tracks: ${completedLines}`,
       `Fastest Lap: ${fastestLap}`,
+      '',
+      'Tracks',
+      trackLines,
+      '',
+      careerComplete ? '★ CAREER COMPLETE ★' : 'Complete all three tracks to finish your career.',
     ].join('\n');
 
     this.add
       .text(width / 2, height * 0.48, body, {
         fontFamily: FONTS.PRIMARY,
-        fontSize: '20px',
-        color: '#ffffff',
+        fontSize: '19px',
+        color: careerComplete ? '#ffd700' : '#ffffff',
         align: 'center',
         lineSpacing: 6,
       })

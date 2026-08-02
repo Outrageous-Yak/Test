@@ -122,6 +122,17 @@ export class RaceResultsPanel {
         lines.push('');
         lines.push(`${getTrackDisplayName(career.trackUnlocked).toUpperCase()} UNLOCKED!`);
       }
+
+      if (career.trackMarkedComplete && career.trackId === 'volcano-rush') {
+        lines.push('');
+        lines.push('VOLCANO RUSH COMPLETE!');
+      }
+
+      if (career.careerComplete) {
+        lines.push('');
+        lines.push('ALL TRACKS COMPLETE!');
+        lines.push('CAREER COMPLETE!');
+      }
     }
 
     this.summaryText.setText(lines.join('\n'));

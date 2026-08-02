@@ -100,6 +100,22 @@ export function buildBarriersAlongPath(
   thickness: number,
   color: number,
 ): Phaser.Physics.Arcade.StaticGroup {
+  return buildBarriersAlongPathWithWidths(
+    scene,
+    path,
+    () => halfWidth,
+    thickness,
+    color,
+  );
+}
+
+export function buildBarriersAlongPathWithWidths(
+  scene: Phaser.Scene,
+  path: readonly PathPoint[],
+  getHalfWidth: (segmentIndex: number) => number,
+  thickness: number,
+  color: number,
+): Phaser.Physics.Arcade.StaticGroup {
   const group = scene.physics.add.staticGroup();
   const count = path.length;
 
@@ -112,6 +128,7 @@ export function buildBarriersAlongPath(
     const ny = Math.cos(angle);
     const midX = (current.x + next.x) / 2;
     const midY = (current.y + next.y) / 2;
+    const halfWidth = getHalfWidth(i);
 
     for (const side of [-1, 1]) {
       const bx = midX + nx * halfWidth * side;

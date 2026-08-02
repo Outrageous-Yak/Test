@@ -1,5 +1,12 @@
 import type { TrackId } from '../state/gameStateTypes';
 
+/** Tracks required for full career completion */
+export const CAREER_TRACK_IDS: readonly TrackId[] = [
+  'mango-meadows',
+  'ruby-coast',
+  'volcano-rush',
+];
+
 /** Coin rewards by finishing position (1st–4th) */
 export const COIN_REWARDS: Record<1 | 2 | 3 | 4, number> = {
   1: 100,
@@ -45,6 +52,11 @@ export interface RaceCareerOutcome {
   isNewRecord: boolean;
   trackUnlocked: TrackId | null;
   trackMarkedComplete: boolean;
+  careerComplete: boolean;
+}
+
+export function isCareerComplete(completedTracks: readonly TrackId[]): boolean {
+  return CAREER_TRACK_IDS.every((id) => completedTracks.includes(id));
 }
 
 export function getCoinsForPosition(position: number): number {
@@ -106,6 +118,11 @@ export function processRaceCareerOutcome(
   const trackMarkedComplete =
     input.didFinish && isWin(input.playerPosition) && !completedTracks.includes(input.trackId);
 
+  const completedAfterRace = trackMarkedComplete
+    ? [...completedTracks, input.trackId]
+    : [...completedTracks];
+  const careerComplete = isCareerComplete(completedAfterRace);
+
   return {
     coinsEarned,
     bestTimeMs: input.didFinish ? bestTimeMs : previousBest ?? null,
@@ -113,5 +130,6 @@ export function processRaceCareerOutcome(
     isNewRecord: input.didFinish && isNewRecord,
     trackUnlocked,
     trackMarkedComplete,
+    careerComplete,
   };
 }
