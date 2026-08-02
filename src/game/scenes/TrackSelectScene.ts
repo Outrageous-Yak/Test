@@ -108,12 +108,16 @@ export class TrackSelectScene extends Phaser.Scene {
     TRACKS.forEach((track, index) => {
       const x = startX + index * cardSpacing;
       const locked = !GameState.isTrackUnlocked(track.id);
+      const completed = GameState.isTrackCompleted(track.id);
+      const status = locked ? 'locked' : completed ? 'complete' : 'unlocked';
+      const bestTimeMs = GameState.getBestTime(track.id);
 
       const card = createTrackCard(this, {
         x,
         y: cardY,
         track,
-        locked,
+        status,
+        bestTimeMs,
         selected: this.selectedId === track.id,
         onSelect: (id) => this.selectTrack(id),
       });

@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { FONTS, GAME_WIDTH, GAME_HEIGHT } from '../constants';
+import { getTrackDisplayName } from '../data/tracks';
 import { createTouchButton, type TouchButtonHandle } from '../ui/TouchButton';
 import { formatRaceTime } from './formatRaceTime';
 import type { RaceResultsPayload } from './RaceResultsTypes';
@@ -27,7 +28,7 @@ export class RaceResultsPanel {
       .setScrollFactor(0);
 
     const title = scene.add
-      .text(GAME_WIDTH / 2, GAME_HEIGHT * 0.12, 'RACE COMPLETE', {
+      .text(GAME_WIDTH / 2, GAME_HEIGHT * 0.1, 'RACE COMPLETE', {
         fontFamily: FONTS.PRIMARY,
         fontSize: '42px',
         color: '#ffd700',
@@ -37,19 +38,19 @@ export class RaceResultsPanel {
       .setScrollFactor(0);
 
     this.summaryText = scene.add
-      .text(GAME_WIDTH / 2, GAME_HEIGHT * 0.34, '', {
+      .text(GAME_WIDTH / 2, GAME_HEIGHT * 0.36, '', {
         fontFamily: FONTS.PRIMARY,
-        fontSize: '20px',
+        fontSize: '18px',
         color: '#ffffff',
         align: 'center',
-        lineSpacing: 8,
+        lineSpacing: 6,
       })
       .setOrigin(0.5)
       .setScrollFactor(0);
 
     this.raceAgainButton = createTouchButton(scene, {
       x: GAME_WIDTH / 2,
-      y: GAME_HEIGHT * 0.72,
+      y: GAME_HEIGHT * 0.74,
       label: 'RACE AGAIN',
       width: 300,
       height: 52,
@@ -57,7 +58,7 @@ export class RaceResultsPanel {
     });
     this.mainMenuButton = createTouchButton(scene, {
       x: GAME_WIDTH / 2,
-      y: GAME_HEIGHT * 0.84,
+      y: GAME_HEIGHT * 0.86,
       label: 'MAIN MENU',
       width: 300,
       height: 52,
@@ -92,6 +93,36 @@ export class RaceResultsPanel {
       const name = result.displayName.padEnd(8, ' ');
       lines.push(`${result.position}. ${name}${you}  ${time}`);
     });
+
+    const career = data.career;
+    if (career) {
+      lines.push('');
+      lines.push(`${career.playerPosition}. YOU`);
+
+      if (career.finishTimeMs !== null) {
+        lines.push(`Time: ${formatRaceTime(career.finishTimeMs)}`);
+      } else {
+        lines.push('Time: DNF');
+      }
+
+      if (career.bestTimeMs !== null) {
+        lines.push(`Best Time: ${formatRaceTime(career.bestTimeMs)}`);
+      }
+
+      if (career.coinsEarned > 0) {
+        lines.push(`+${career.coinsEarned} Coins`);
+      }
+
+      if (career.isNewRecord) {
+        lines.push('');
+        lines.push('NEW RECORD!');
+      }
+
+      if (career.trackUnlocked) {
+        lines.push('');
+        lines.push(`${getTrackDisplayName(career.trackUnlocked).toUpperCase()} UNLOCKED!`);
+      }
+    }
 
     this.summaryText.setText(lines.join('\n'));
     this.container.setVisible(true);
