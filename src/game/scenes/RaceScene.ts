@@ -172,6 +172,8 @@ export class RaceScene extends Phaser.Scene {
 
     if (phase === 'paused') return;
 
+    this.touchControls.tick(delta);
+
     const player = this.participantManager.getPlayerParticipant();
     const input = this.touchControls.getInput();
     const updateResult = this.participantManager.update(delta, input);

@@ -97,7 +97,7 @@ export function computeAiInput(
     curvature > 0.55;
 
   return {
-    input: { steerLeft, steerRight, brake },
+    input: { steer: 0, steerLeft, steerRight, brake },
     state: nextState,
   };
 }

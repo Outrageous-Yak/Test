@@ -134,9 +134,11 @@ export class PlayerCar implements RaceCarController {
     }
 
     const speedFactor = Math.max(DRIVING.MIN_TURN_SPEED, Math.abs(this.speed) / DRIVING.MAX_SPEED);
-    let turn = 0;
-    if (input.steerLeft) turn -= DRIVING.TURN_RATE * speedFactor * dt;
-    if (input.steerRight) turn += DRIVING.TURN_RATE * speedFactor * dt;
+    let turn = input.steer * DRIVING.TURN_RATE * speedFactor * dt;
+    if (input.steer === 0) {
+      if (input.steerLeft) turn -= DRIVING.TURN_RATE * speedFactor * dt;
+      if (input.steerRight) turn += DRIVING.TURN_RATE * speedFactor * dt;
+    }
 
     this.sprite.rotation += turn;
 
