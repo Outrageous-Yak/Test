@@ -11,6 +11,8 @@ import {
   hasValidSelectedCar,
   hasValidSelectedTrack,
 } from '../utils/flowRecovery';
+import { getRaceLaunchRedirectScene } from '../race/raceValidation';
+import { isPlayableTrack } from '../race/tracks/TrackRegistry';
 
 /**
  * Race Loading Scene — summary screen before entering the race.
@@ -41,6 +43,12 @@ export class RaceLoadingScene extends Phaser.Scene {
 
     if (!hasValidSelectedTrack()) {
       fadeToScene(this, SCENE_KEYS.TRACK_SELECT, this.isTransitioning);
+      return;
+    }
+
+    const redirect = getRaceLaunchRedirectScene();
+    if (redirect) {
+      fadeToScene(this, redirect, this.isTransitioning);
       return;
     }
 
@@ -83,6 +91,7 @@ export class RaceLoadingScene extends Phaser.Scene {
 
     const state = GameState.getState();
     const track = getTrackById(state.selectedTrack!);
+    const playable = isPlayableTrack(state.selectedTrack!);
     const summary = [
       `Racer: ${getCharacterDisplayName(state.selectedCharacter)}`,
       `Car: ${getCarDisplayName(state.selectedCar)}`,
@@ -116,6 +125,7 @@ export class RaceLoadingScene extends Phaser.Scene {
       label: 'START RACE',
       width: UI.MENU_BUTTON_WIDTH,
       height: UI.MENU_BUTTON_HEIGHT,
+      enabled: playable,
       onPress: () => this.onStartRace(),
     });
 

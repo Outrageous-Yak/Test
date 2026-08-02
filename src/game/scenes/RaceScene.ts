@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import { SCENE_KEYS, FONTS, GAME_WIDTH, GAME_HEIGHT } from '../constants';
 import { getCarById } from '../data/cars';
-import { getTrackById, getTrackDisplayName } from '../data/tracks';
+import { getTrackDisplayName } from '../data/tracks';
 import { GameState } from '../state/GameState';
 import { createTouchButton, type TouchButtonHandle } from '../ui/TouchButton';
 import { fadeInScene, fadeToScene } from '../utils/sceneTransition';
@@ -14,19 +14,20 @@ import { RaceMessageController } from '../race/RaceMessageController';
 import { RaceParticipantManager } from '../race/RaceParticipantManager';
 import { RaceResultsPanel } from '../race/RaceResultsPanel';
 import { TouchControls } from '../race/TouchControls';
-import { TrackRenderer } from '../race/TrackRenderer';
 import { HUD_INSETS } from '../race/raceHudInsets';
 import { getRaceLaunchRedirectScene } from '../race/raceValidation';
-import { getMangoMeadowsRaceData } from '../race/tracks/mangoMeadowsRaceData';
+import { loadSelectedPlayableTrack } from '../race/tracks/TrackLoader';
+import type { PlayableTrackDefinition, TrackBuildResult } from '../race/tracks/trackTypes';
 import type { RacePhase, RacerId } from '../race/raceTypes';
 
 const RACER_COUNT = 4;
 
 /**
- * Race Scene — four-racer Mango Meadows event with AI opponents.
+ * Race Scene — four-racer event loaded from the active playable track definition.
  */
 export class RaceScene extends Phaser.Scene {
-  private trackRenderer?: TrackRenderer;
+  private playableTrack?: PlayableTrackDefinition;
+  private trackBuild?: TrackBuildResult;
   private participantManager?: RaceParticipantManager;
   private cameraController?: CameraController;
   private touchControls?: TouchControls;
@@ -75,14 +76,19 @@ export class RaceScene extends Phaser.Scene {
     this.isTransitioning.value = false;
     this.debugEnabled = false;
 
-    const state = GameState.getState();
-    const trackDef = getTrackById(state.selectedTrack!);
-    this.totalLaps = trackDef.lapCount;
-    const raceData = getMangoMeadowsRaceData();
-    const carDef = getCarById(state.selectedCar!);
+    const loaded = loadSelectedPlayableTrack();
+    if (!loaded) {
+      fadeToScene(this, SCENE_KEYS.TRACK_SELECT, this.isTransitioning);
+      return;
+    }
 
-    this.trackRenderer = new TrackRenderer(this);
-    const track = this.trackRenderer.buildMangoMeadows();
+    this.playableTrack = loaded.definition;
+    const raceData = loaded.definition.raceData;
+    this.totalLaps = loaded.definition.lapCount;
+    const carDef = getCarById(GameState.getState().selectedCar!);
+
+    this.trackBuild = loaded.definition.build(this);
+    const track = this.trackBuild;
 
     this.physics.world.setBounds(0, 0, track.worldWidth, track.worldHeight);
 
@@ -119,7 +125,13 @@ export class RaceScene extends Phaser.Scene {
     this.checkpointSystem.onExit = (racerId, index) =>
       this.participantManager?.handleCheckpointExit(racerId, index);
 
-    this.cameraController = new CameraController(this, this.participantManager.getPlayerCar());
+    this.cameraController = new CameraController(
+      this,
+      this.participantManager.getPlayerCar(),
+      track.worldWidth,
+      track.worldHeight,
+      loaded.definition.camera,
+    );
     this.touchControls = new TouchControls(this);
     this.countdown = new CountdownController(this);
     this.raceHud = new RaceHud(this);
@@ -220,7 +232,10 @@ export class RaceScene extends Phaser.Scene {
     this.checkpointSystem?.destroy();
     this.touchControls?.destroy();
     this.participantManager?.destroy();
-    this.trackRenderer?.destroy();
+    this.trackBuild?.destroyGraphics?.();
+    this.trackBuild?.barriers.clear(true, true);
+    this.trackBuild = undefined;
+    this.playableTrack = undefined;
     this.cameraController = undefined;
     this.participantManager = undefined;
   }
@@ -359,6 +374,7 @@ export class RaceScene extends Phaser.Scene {
     const player = this.participantManager.getPlayerParticipant();
     const fps = Math.round(this.game.loop.actualFps);
     const lines = [
+      `Track: ${this.playableTrack?.id ?? 'unknown'}`,
       `Phase: ${phase}`,
       `Position: ${this.participantManager.getPlayerPosition()}/4`,
       `Lap: ${player.racerProgress.currentLap}/${player.racerProgress.totalLaps}`,
@@ -383,10 +399,13 @@ export class RaceScene extends Phaser.Scene {
   }
 
   private drawDebugPath(): void {
-    const raceData = getMangoMeadowsRaceData();
+    const raceData = this.participantManager?.getTrackData();
+    if (!raceData) return;
+
     if (!this.debugGraphics) {
       this.debugGraphics = this.add.graphics().setDepth(4);
     }
+
     this.debugGraphics.clear();
     this.debugGraphics.lineStyle(2, 0xff00ff, 0.5);
     const path = raceData.aiPath;

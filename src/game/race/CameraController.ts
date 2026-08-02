@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import { PlayerCar } from './PlayerCar';
-import { CAMERA, RACE_WORLD } from './raceConstants';
+import type { TrackCameraConfig } from './tracks/trackTypes';
 
 /**
  * Smooth camera follow with zoom and world bounds clamping.
@@ -9,13 +9,19 @@ export class CameraController {
   private readonly camera: Phaser.Cameras.Scene2D.Camera;
   private readonly player: PlayerCar;
 
-  constructor(scene: Phaser.Scene, player: PlayerCar) {
+  constructor(
+    scene: Phaser.Scene,
+    player: PlayerCar,
+    worldWidth: number,
+    worldHeight: number,
+    config: TrackCameraConfig,
+  ) {
     this.camera = scene.cameras.main;
     this.player = player;
 
-    this.camera.setBounds(0, 0, RACE_WORLD.WIDTH, RACE_WORLD.HEIGHT);
-    this.camera.startFollow(player.getGameObject(), true, CAMERA.FOLLOW_LERP, CAMERA.FOLLOW_LERP);
-    this.camera.setZoom(CAMERA.ZOOM);
+    this.camera.setBounds(0, 0, worldWidth, worldHeight);
+    this.camera.startFollow(player.getGameObject(), true, config.lerpX, config.lerpY);
+    this.camera.setZoom(config.zoom);
   }
 
   update(): void {

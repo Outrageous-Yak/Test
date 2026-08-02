@@ -35,7 +35,8 @@ describe('careerLogic win and unlock', () => {
   it('unlocks Ruby Coast only on Mango Meadows win', () => {
     expect(getUnlockForWin('mango-meadows', 1)).toBe('ruby-coast');
     expect(getUnlockForWin('mango-meadows', 2)).toBeNull();
-    expect(getUnlockForWin('ruby-coast', 1)).toBeNull();
+    expect(getUnlockForWin('ruby-coast', 1)).toBe('volcano-rush');
+    expect(getUnlockForWin('ruby-coast', 2)).toBeNull();
   });
 });
 
@@ -90,7 +91,7 @@ describe('processRaceCareerOutcome', () => {
     expect(outcome.bestTimeMs).toBe(90_000);
   });
 
-  it('does not unlock Ruby Coast on second place', () => {
+  it('does not unlock Ruby Coast on second place at Mango Meadows', () => {
     const outcome = processRaceCareerOutcome(
       {
         trackId: 'mango-meadows',
@@ -106,5 +107,40 @@ describe('processRaceCareerOutcome', () => {
     expect(outcome.coinsEarned).toBe(60);
     expect(outcome.trackUnlocked).toBeNull();
     expect(outcome.trackMarkedComplete).toBe(false);
+  });
+
+  it('marks Ruby Coast complete and unlocks Volcano Rush on win', () => {
+    const outcome = processRaceCareerOutcome(
+      {
+        trackId: 'ruby-coast',
+        playerPosition: 1,
+        finishTimeMs: 110_000,
+        fastestLapMs: 32_000,
+        didFinish: true,
+      },
+      {},
+      [],
+    );
+
+    expect(outcome.trackUnlocked).toBe('volcano-rush');
+    expect(outcome.trackMarkedComplete).toBe(true);
+    expect(outcome.coinsEarned).toBe(100);
+  });
+
+  it('does not unlock Volcano Rush on second place at Ruby Coast', () => {
+    const outcome = processRaceCareerOutcome(
+      {
+        trackId: 'ruby-coast',
+        playerPosition: 2,
+        finishTimeMs: 115_000,
+        fastestLapMs: null,
+        didFinish: true,
+      },
+      {},
+      [],
+    );
+
+    expect(outcome.trackUnlocked).toBeNull();
+    expect(outcome.coinsEarned).toBe(60);
   });
 });

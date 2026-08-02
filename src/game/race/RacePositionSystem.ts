@@ -1,5 +1,5 @@
 import type { CheckpointDefinition, RacerId, RacerRaceProgress } from './raceTypes';
-import type { PathPoint } from './tracks/mangoMeadowsRaceData';
+import type { PathPoint } from './tracks/trackTypes';
 
 export interface PositionInput {
   racerId: RacerId;

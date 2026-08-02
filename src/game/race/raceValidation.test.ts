@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { GameState } from '../state/GameState';
-import { canLaunchPhase6Race, getRaceLaunchRedirectScene } from './raceValidation';
+import { canLaunchRace, canLaunchPhase6Race, getRaceLaunchRedirectScene } from './raceValidation';
 import { SCENE_KEYS } from '../constants';
 
 describe('raceValidation', () => {
@@ -12,16 +12,35 @@ describe('raceValidation', () => {
     GameState.setSelectedCharacter('mango');
     GameState.setSelectedCar('mango-car');
     GameState.setSelectedTrack('mango-meadows');
+    expect(canLaunchRace()).toBe(true);
     expect(canLaunchPhase6Race()).toBe(true);
     expect(getRaceLaunchRedirectScene()).toBeNull();
   });
 
-  it('rejects unsupported tracks', () => {
+  it('allows unlocked Ruby Coast', () => {
     GameState.setSelectedCharacter('mango');
     GameState.setSelectedCar('mango-car');
     GameState.unlockTrack('ruby-coast');
     GameState.setSelectedTrack('ruby-coast');
-    expect(canLaunchPhase6Race()).toBe(false);
+    expect(canLaunchRace()).toBe(true);
+    expect(getRaceLaunchRedirectScene()).toBeNull();
+  });
+
+  it('rejects unlocked but unplayable Volcano Rush', () => {
+    GameState.setSelectedCharacter('mango');
+    GameState.setSelectedCar('mango-car');
+    GameState.unlockTrack('ruby-coast');
+    GameState.unlockTrack('volcano-rush');
+    GameState.setSelectedTrack('volcano-rush');
+    expect(canLaunchRace()).toBe(false);
+    expect(getRaceLaunchRedirectScene()).toBe(SCENE_KEYS.TRACK_SELECT);
+  });
+
+  it('rejects locked Ruby Coast', () => {
+    GameState.setSelectedCharacter('mango');
+    GameState.setSelectedCar('mango-car');
+    GameState.setSelectedTrack('ruby-coast');
+    expect(canLaunchRace()).toBe(false);
     expect(getRaceLaunchRedirectScene()).toBe(SCENE_KEYS.TRACK_SELECT);
   });
 
