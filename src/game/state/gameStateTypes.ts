@@ -16,7 +16,7 @@ export interface SerializableGameState {
   selectedCar: CarId | null;
   selectedTrack: TrackId | null;
   coins: number;
-  unlockedCharacters: string[];
+  unlockedCharacters: CharacterId[];
   unlockedCars: string[];
   unlockedTracks: string[];
   settings: GameSettings;

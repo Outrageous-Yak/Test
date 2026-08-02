@@ -89,4 +89,46 @@ describe('mergeWithDefaults', () => {
     const state = mergeWithDefaults({ coins: -5 });
     expect(state.coins).toBe(0);
   });
+
+  it('accepts valid selectedCharacter values', () => {
+    expect(mergeWithDefaults({ selectedCharacter: 'mango' }).selectedCharacter).toBe('mango');
+    expect(mergeWithDefaults({ selectedCharacter: 'ruby' }).selectedCharacter).toBe('ruby');
+    expect(mergeWithDefaults({ selectedCharacter: null }).selectedCharacter).toBeNull();
+  });
+
+  it('rejects unknown selectedCharacter values safely', () => {
+    expect(mergeWithDefaults({ selectedCharacter: 'peach' }).selectedCharacter).toBeNull();
+    expect(mergeWithDefaults({ selectedCharacter: 123 }).selectedCharacter).toBeNull();
+  });
+
+  it('filters invalid entries from unlockedCharacters', () => {
+    const state = mergeWithDefaults({ unlockedCharacters: ['mango', 'peach', 'ruby'] });
+    expect(state.unlockedCharacters).toEqual(['mango', 'ruby']);
+  });
+
+  it('falls back to defaults when unlockedCharacters is entirely invalid', () => {
+    const state = mergeWithDefaults({ unlockedCharacters: ['peach', 'banana'] });
+    expect(state.unlockedCharacters).toEqual(['mango', 'ruby']);
+  });
+});
+
+describe('character selection persistence', () => {
+  beforeEach(() => {
+    localStorage.clear();
+  });
+
+  it('persists selectedCharacter across reload', () => {
+    const state = mergeWithDefaults({ selectedCharacter: 'ruby' });
+    SaveSystem.save(state);
+    expect(SaveSystem.load().selectedCharacter).toBe('ruby');
+  });
+
+  it('does not crash on unknown stored character selection', () => {
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({ selectedCharacter: 'unknown-racer' }),
+    );
+    expect(() => SaveSystem.load()).not.toThrow();
+    expect(SaveSystem.load().selectedCharacter).toBeNull();
+  });
 });

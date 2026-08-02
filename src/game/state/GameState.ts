@@ -1,4 +1,5 @@
 import { SaveSystem } from '../systems/SaveSystem';
+import { canSelectCharacter } from '../data/characters';
 import {
   DEFAULT_GAME_STATE,
   type CharacterId,
@@ -40,6 +41,9 @@ class GameStateManager {
   }
 
   setSelectedCharacter(character: CharacterId | null): void {
+    if (character !== null && !canSelectCharacter(character, this.state.unlockedCharacters)) {
+      return;
+    }
     this.state.selectedCharacter = character;
     this.persist();
   }
