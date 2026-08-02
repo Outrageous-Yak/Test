@@ -1,5 +1,6 @@
 import { SaveSystem } from '../systems/SaveSystem';
 import { canSelectCharacter } from '../data/characters';
+import { canSelectCar } from '../data/cars';
 import {
   DEFAULT_GAME_STATE,
   type CharacterId,
@@ -48,9 +49,13 @@ class GameStateManager {
     this.persist();
   }
 
-  setSelectedCar(car: CarId | null): void {
+  setSelectedCar(car: CarId | null): boolean {
+    if (car !== null && !canSelectCar(car, this.state.unlockedCars)) {
+      return false;
+    }
     this.state.selectedCar = car;
     this.persist();
+    return true;
   }
 
   setSelectedTrack(track: TrackId | null): void {
@@ -66,6 +71,11 @@ class GameStateManager {
   reset(): void {
     this.state = { ...DEFAULT_GAME_STATE, settings: { ...DEFAULT_GAME_STATE.settings } };
     SaveSystem.reset();
+  }
+
+  /** Reload state from local storage — useful after external storage changes */
+  reloadFromStorage(): void {
+    this.state = SaveSystem.load();
   }
 
   private persist(): void {
