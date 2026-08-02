@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import { GAME_HEIGHT, GAME_WIDTH } from '../constants';
-import { NudgePad } from './NudgePad';
+import { NUDGE_PAD_HEIGHT, NUDGE_PAD_WIDTH, NudgePad } from './NudgePad';
 import {
   buildRaceInputFromIntent,
   createReverseLatchState,
@@ -13,8 +13,7 @@ import { HUD_INSETS } from './raceHudInsets';
 
 export type { RaceInput } from './raceInput';
 
-const PAD_WIDTH = 176;
-const PAD_HEIGHT = 188;
+const NO_KEY = { isDown: false } as Phaser.Input.Keyboard.Key;
 
 /**
  * Sole touch driving control — bottom-right nudge pad with WASD / arrow fallback.
@@ -37,29 +36,26 @@ export class TouchControls {
 
   constructor(scene: Phaser.Scene) {
     const keyboard = scene.input.keyboard;
-    if (!keyboard) {
-      throw new Error('TouchControls requires a keyboard plugin for desktop fallback');
-    }
 
     this.keys = {
-      forward: keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.W),
-      backward: keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.S),
-      left: keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.A),
-      right: keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.D),
-      upArrow: keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.UP),
-      downArrow: keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.DOWN),
-      leftArrow: keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.LEFT),
-      rightArrow: keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.RIGHT),
+      forward: keyboard?.addKey(Phaser.Input.Keyboard.KeyCodes.W) ?? NO_KEY,
+      backward: keyboard?.addKey(Phaser.Input.Keyboard.KeyCodes.S) ?? NO_KEY,
+      left: keyboard?.addKey(Phaser.Input.Keyboard.KeyCodes.A) ?? NO_KEY,
+      right: keyboard?.addKey(Phaser.Input.Keyboard.KeyCodes.D) ?? NO_KEY,
+      upArrow: keyboard?.addKey(Phaser.Input.Keyboard.KeyCodes.UP) ?? NO_KEY,
+      downArrow: keyboard?.addKey(Phaser.Input.Keyboard.KeyCodes.DOWN) ?? NO_KEY,
+      leftArrow: keyboard?.addKey(Phaser.Input.Keyboard.KeyCodes.LEFT) ?? NO_KEY,
+      rightArrow: keyboard?.addKey(Phaser.Input.Keyboard.KeyCodes.RIGHT) ?? NO_KEY,
     };
 
     const margin = HUD_INSETS.RIGHT;
     const bottom = GAME_HEIGHT - HUD_INSETS.BOTTOM;
 
     this.nudgePad = new NudgePad(scene, {
-      x: GAME_WIDTH - margin - PAD_WIDTH / 2,
-      y: bottom - PAD_HEIGHT / 2,
-      width: PAD_WIDTH,
-      height: PAD_HEIGHT,
+      x: GAME_WIDTH - margin - NUDGE_PAD_WIDTH / 2,
+      y: bottom - NUDGE_PAD_HEIGHT / 2,
+      width: NUDGE_PAD_WIDTH,
+      height: NUDGE_PAD_HEIGHT,
       title: 'DRIVE',
     });
   }
