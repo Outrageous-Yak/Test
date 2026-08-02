@@ -18,8 +18,9 @@ describe('raceConstants', () => {
     expect(DRIVING.ACCELERATION).toBeGreaterThan(0);
     expect(DRIVING.BRAKE_FORCE).toBeGreaterThan(DRIVING.FRICTION);
     expect(DRIVING.TURN_RATE).toBeGreaterThan(0);
-    expect(DRIVING.MIN_TURN_SPEED).toBeGreaterThan(0);
-    expect(DRIVING.MIN_TURN_SPEED).toBeLessThanOrEqual(1);
+    expect(DRIVING.TURN_RATE).toBeGreaterThan(3.5);
+    expect(DRIVING.MIN_TURN_SPEED).toBeGreaterThan(0.3);
+    expect(DRIVING.BARRIER_SCRAPE_MIN_SPEED).toBeGreaterThan(40);
   });
 
   it('configures camera follow and zoom', () => {

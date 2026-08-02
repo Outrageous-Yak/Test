@@ -27,8 +27,16 @@ export const DRIVING = {
   ACCELERATION: 320,
   BRAKE_FORCE: 480,
   FRICTION: 140,
-  TURN_RATE: 3.2,
-  MIN_TURN_SPEED: 0.15,
+  /** Sharper cornering — sqrt speed curve uses MIN_TURN_SPEED as the floor factor. */
+  TURN_RATE: 4.1,
+  MIN_TURN_SPEED: 0.38,
+  /** Barrier scrape — retain momentum and slide instead of dead-stopping. */
+  BARRIER_SPEED_RETAIN: 0.76,
+  BARRIER_SCRAPE_MIN_SPEED: 58,
+  BARRIER_THROTTLE_FLOOR: 100,
+  BARRIER_SCRAPE_DURATION_MS: 180,
+  BARRIER_LATERAL_RETAIN: 0.58,
+  BARRIER_FORWARD_PUSH: 0.22,
   CAR_WIDTH: 44,
   CAR_HEIGHT: 24,
 } as const;

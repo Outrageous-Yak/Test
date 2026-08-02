@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { applyBarrierHitSpeed, steeringSpeedFactor } from './drivingPhysics';
 import { DRIVING } from './raceConstants';
 import type { RaceCarController } from './RaceCarController';
 import type { RaceInput } from './raceInput';
@@ -20,7 +21,7 @@ export class AiRacer implements RaceCarController {
     scene.physics.add.existing(this.sprite);
     this.body = this.sprite.body as Phaser.Physics.Arcade.Body;
     this.body.setCollideWorldBounds(true);
-    this.body.setBounce(0.05, 0.05);
+    this.body.setBounce(0, 0);
     this.body.setDrag(0, 0);
     this.body.setMaxVelocity(DRIVING.MAX_SPEED, DRIVING.MAX_SPEED);
     this.body.setMass(1);
@@ -89,10 +90,13 @@ export class AiRacer implements RaceCarController {
   }
 
   onBarrierHit(): void {
-    this.speed *= 0.55;
-    if (Math.abs(this.speed) < 20) {
-      this.speed = 0;
-    }
+    this.speed = applyBarrierHitSpeed({
+      speed: this.speed,
+      throttle: 1,
+      speedRetain: DRIVING.BARRIER_SPEED_RETAIN,
+      scrapeMinSpeed: DRIVING.BARRIER_SCRAPE_MIN_SPEED,
+      throttleFloor: DRIVING.BARRIER_THROTTLE_FLOOR,
+    });
   }
 
   update(deltaMs: number, input: RaceInput): void {
@@ -116,7 +120,11 @@ export class AiRacer implements RaceCarController {
       this.speed = Math.max(0, this.speed - DRIVING.FRICTION * dt * 0.25);
     }
 
-    const speedFactor = Math.max(DRIVING.MIN_TURN_SPEED, Math.abs(this.speed) / DRIVING.MAX_SPEED);
+    const speedFactor = steeringSpeedFactor(
+      this.speed,
+      DRIVING.MAX_SPEED,
+      DRIVING.MIN_TURN_SPEED,
+    );
     const turn = input.steer * DRIVING.TURN_RATE * speedFactor * dt;
     this.sprite.rotation += turn;
 
