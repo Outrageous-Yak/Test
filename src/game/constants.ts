@@ -3,7 +3,7 @@ export const GAME_WIDTH = 1280;
 export const GAME_HEIGHT = 720;
 
 /** Application version shown in menu and credits */
-export const GAME_VERSION = '0.3.0';
+export const GAME_VERSION = '0.4.0';
 
 /** Minimum touch target size (Apple HIG recommendation) */
 export const MIN_TOUCH_TARGET = 48;
@@ -37,6 +37,7 @@ export const SCENE_KEYS = {
   CHARACTER_SELECT: 'CharacterSelectScene',
   CAR_SELECT: 'CarSelectScene',
   TRACK_SELECT: 'TrackSelectScene',
+  RACE_LOADING: 'RaceLoadingScene',
 } as const;
 
 /** Font families */
